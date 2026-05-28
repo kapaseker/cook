@@ -1,0 +1,13 @@
+product: jvm/app
+
+dependencies:
+  - $compose.desktop.currentOs
+  - $compose.material3
+  - org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0
+  - org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2
+  - ai.koog:koog-agents:1.0.0
+  - ai.koog:prompt-executor-openrouter-client:1.0.0
+  - org.slf4j:slf4j-simple:2.0.17
+
+settings:
+  compose: enabled
