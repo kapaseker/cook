@@ -11,6 +11,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+private const val HELLO =
+"""
+Hi, I'm Cook. 👋
+
+Talk to me in English or Chinese, and I'll help you improve your English along the way.
+"""
+
 class ChatViewModel(
     private val cookRepository: CookRepository = Cook,
 ) : ViewModel() {
@@ -23,7 +30,7 @@ class ChatViewModel(
                 ChatMessage(
                     id = nextMessageId(),
                     author = MessageAuthor.Agent,
-                    text = "Hi, I am Cook. Send me a message and I will answer through Koog.",
+                    text = cookRepository.startupError ?: HELLO,
                 )
             )
         )
