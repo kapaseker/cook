@@ -31,6 +31,7 @@ fun App() {
                 state = state,
                 onDraftChanged = viewModel::onDraftChanged,
                 onSend = viewModel::sendMessage,
+                onModelSelected = viewModel::onModelSelected,
             )
         }
     }

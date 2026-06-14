@@ -2,8 +2,10 @@ package agent
 
 import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.functionalStrategy
+import ai.koog.agents.core.agent.session.AIAgentLLMWriteSession
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
+import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
@@ -13,7 +15,7 @@ private const val ENV_KEY = "OPENROUTER_API_KEY"
 
 private const val SYSTEM_PROPERTIES_KEY =
 """
-Your name is Cook, your English learning assistant.
+Your name is Cook, an English learning assistant.
 
 Your primary goal is to help the user improve their English while also answering their questions.
 
@@ -84,14 +86,40 @@ Answer:
 Never skip the language-learning step before answering.
 """
 
+data class CookModel(
+    val id: String,
+    val displayName: String,
+)
+
+private data class CookRequest(
+    val question: String,
+    val model: CookModel,
+)
 
 interface CookRepository {
     val startupError: String?
+    val availableModels: List<CookModel>
+    val defaultModel: CookModel
 
-    suspend fun ask(question: String): String
+    suspend fun ask(question: String, model: CookModel): String
 }
 
 object Cook : CookRepository {
+
+    override val availableModels: List<CookModel> = listOf(
+        CookModel(
+            id = "deepseek/deepseek-v4-flash",
+            displayName = "DeepSeek V4 Flash",
+        ),
+        CookModel(
+            id = "openai/gpt-oss-120b:free",
+            displayName = "GPT OSS 120B Free",
+        ),
+    )
+
+    override val defaultModel: CookModel = availableModels.first { model ->
+        model.id == "openai/gpt-oss-120b:free"
+    }
 
     override val startupError: String?
         get() = if (System.getenv(ENV_KEY).isNullOrBlank()) {
@@ -100,42 +128,30 @@ object Cook : CookRepository {
             null
         }
 
-    private val agent: AIAgent<String, String> by lazy {
-
+    private val promptExecutor: PromptExecutor by lazy {
         val apiKey = System.getenv(ENV_KEY)
 
         require(!apiKey.isNullOrBlank()) {
             missingApiKeyMessage()
         }
 
-        // Describe the OpenRouter-hosted model and the Koog capabilities this agent expects to use.
-        val glm4Flash = LLModel(
-            provider = LLMProvider.OpenRouter,
-            id = "deepseek/deepseek-v4-flash",   // free-tier, fast
-            capabilities = listOf(
-                LLMCapability.Temperature,
-                LLMCapability.Tools,
-                LLMCapability.Completion,
-            )
+        MultiLLMPromptExecutor(
+            mapOf(LLMProvider.OpenRouter to OpenRouterLLMClient(apiKey = apiKey))
         )
+    }
 
-        // Build a Koog prompt executor around the OpenRouter client selected by the API key env var.
-        val client = OpenRouterLLMClient(apiKey = apiKey)
-        val executor = PromptExecutor.builder()
-            .addClient(client)
-            .build()
-
-        // Keep one functional agent instance so calls to ask() reuse the same model and message history.
+    private val agent: AIAgent<CookRequest, String> by lazy {
         AIAgent.builder()
-            .promptExecutor(executor)
-            .llmModel(glm4Flash)
+            .promptExecutor(promptExecutor)
+            .llmModel(defaultModel.toLLModel())
             .systemPrompt(SYSTEM_PROPERTIES_KEY)
             .toolRegistry(ToolRegistry.EMPTY)
             .functionalStrategy(
-                functionalStrategy<String, String>("direct_chat") { question ->
+                functionalStrategy<CookRequest, String>("direct_chat") { request ->
                     llm.writeSession {
+                        model = request.model.toLLModel()
                         appendPrompt {
-                            user(question)
+                            user(request.question)
                         }
                         requestLLMWithoutTools().textContent()
                     }
@@ -144,10 +160,20 @@ object Cook : CookRepository {
             .build()
     }
 
-    override suspend fun ask(question: String): String {
-        // AIAgent.run is suspend; callers decide which coroutine scope owns the request.
-        return agent.run(question)
+    override suspend fun ask(question: String, model: CookModel): String {
+        return agent.run(CookRequest(question = question, model = model))
     }
+}
+
+private fun CookModel.toLLModel(): LLModel {
+    return LLModel(
+        provider = LLMProvider.OpenRouter,
+        id = id,
+        capabilities = listOf(
+            LLMCapability.Temperature,
+            LLMCapability.Completion,
+        )
+    )
 }
 
 private fun missingApiKeyMessage(): String {

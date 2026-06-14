@@ -1,6 +1,7 @@
 package chat
 
 import agent.Cook
+import agent.CookModel
 import agent.CookRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,15 +25,19 @@ class ChatViewModel(
 
     private var nextId = 0L
 
+    private val initialMessage = cookRepository.startupError ?: HELLO
+
     private val _uiState = MutableStateFlow(
         ChatUiState(
             messages = listOf(
                 ChatMessage(
                     id = nextMessageId(),
                     author = MessageAuthor.Agent,
-                    text = cookRepository.startupError ?: HELLO,
+                    text = initialMessage,
                 )
-            )
+            ),
+            availableModels = cookRepository.availableModels,
+            selectedModel = cookRepository.defaultModel,
         )
     )
 
@@ -44,12 +49,20 @@ class ChatViewModel(
         }
     }
 
+    fun onModelSelected(model: CookModel) {
+        _uiState.update { state ->
+            state.copy(selectedModel = model, error = null)
+        }
+    }
+
     fun sendMessage() {
-        val question = _uiState.value.draft.trim()
-        if (question.isEmpty() || _uiState.value.isSending) {
+        val currentState = _uiState.value
+        val question = currentState.draft.trim()
+        if (question.isEmpty() || currentState.isSending) {
             return
         }
 
+        val selectedModel = currentState.selectedModel
         val pendingMessageId = nextMessageId()
         _uiState.update { state ->
             state.copy(
@@ -70,7 +83,12 @@ class ChatViewModel(
         }
 
         viewModelScope.launch(Dispatchers.Default) {
-            val result = runCatching { cookRepository.ask(question) }
+            val result = runCatching {
+                cookRepository.ask(
+                    question = question,
+                    model = selectedModel,
+                )
+            }
             _uiState.update { state ->
                 val messagesWithoutPending = state.messages.filterNot { message ->
                     message.id == pendingMessageId
