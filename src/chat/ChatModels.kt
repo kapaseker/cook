@@ -1,7 +1,5 @@
 package chat
 
-import agent.CookModel
-
 enum class MessageAuthor {
     User,
     Agent,
@@ -19,6 +17,5 @@ data class ChatUiState(
     val draft: String = "",
     val isSending: Boolean = false,
     val error: String? = null,
-    val availableModels: List<CookModel>,
-    val selectedModel: CookModel,
+    val modelDisplayName: String,
 )

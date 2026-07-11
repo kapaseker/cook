@@ -1,20 +1,18 @@
 package agent
 
-import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.functionalStrategy
-import ai.koog.agents.core.agent.session.AIAgentLLMWriteSession
-import ai.koog.agents.core.tools.ToolRegistry
-import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
+import ai.koog.http.client.ktor.KtorKoogHttpClient
+import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
+import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import kotlinx.coroutines.flow.Flow
 
-private const val ENV_KEY = "OPENROUTER_API_KEY"
+private const val ENV_KEY = "GLM_API_KEY"
 
-private const val SYSTEM_PROPERTIES_KEY =
-"""
+private const val SYSTEM_PROMPT = """
 Your name is Cook, an English learning assistant.
 
 Your primary goal is to help the user improve their English while also answering their questions.
@@ -91,35 +89,19 @@ data class CookModel(
     val displayName: String,
 )
 
-private data class CookRequest(
-    val question: String,
-    val model: CookModel,
-)
-
 interface CookRepository {
     val startupError: String?
-    val availableModels: List<CookModel>
-    val defaultModel: CookModel
+    val model: CookModel
 
-    suspend fun ask(question: String, model: CookModel): String
+    fun sendMessage(question: String): Flow<String>
 }
 
 object Cook : CookRepository {
 
-    override val availableModels: List<CookModel> = listOf(
-        CookModel(
-            id = "deepseek/deepseek-v4-flash",
-            displayName = "DeepSeek V4 Flash",
-        ),
-        CookModel(
-            id = "openai/gpt-oss-120b:free",
-            displayName = "GPT OSS 120B Free",
-        ),
+    override val model: CookModel = CookModel(
+        id = "glm-4.7-flash",
+        displayName = "GLM-4.7 Flash",
     )
-
-    override val defaultModel: CookModel = availableModels.first { model ->
-        model.id == "openai/gpt-oss-120b:free"
-    }
 
     override val startupError: String?
         get() = if (System.getenv(ENV_KEY).isNullOrBlank()) {
@@ -136,44 +118,43 @@ object Cook : CookRepository {
         }
 
         MultiLLMPromptExecutor(
-            mapOf(LLMProvider.OpenRouter to OpenRouterLLMClient(apiKey = apiKey))
-        )
-    }
-
-    private val agent: AIAgent<CookRequest, String> by lazy {
-        AIAgent.builder()
-            .promptExecutor(promptExecutor)
-            .llmModel(defaultModel.toLLModel())
-            .systemPrompt(SYSTEM_PROPERTIES_KEY)
-            .toolRegistry(ToolRegistry.EMPTY)
-            .functionalStrategy(
-                functionalStrategy<CookRequest, String>("direct_chat") { request ->
-                    llm.writeSession {
-                        model = request.model.toLLModel()
-                        appendPrompt {
-                            user(request.question)
-                        }
-                        requestLLMWithoutTools().textContent()
-                    }
-                }
+            mapOf(
+                LLMProvider.ZhipuAI to OpenAILLMClient(
+                    apiKey = apiKey,
+                    settings = OpenAIClientSettings(
+                        baseUrl = "https://open.bigmodel.cn/api/paas/v4/",
+                        chatCompletionsPath = "chat/completions",
+                    ),
+                    httpClientFactory = KtorKoogHttpClient.Factory(),
+                ),
             )
-            .build()
-    }
-
-    override suspend fun ask(question: String, model: CookModel): String {
-        return agent.run(CookRequest(question = question, model = model))
-    }
-}
-
-private fun CookModel.toLLModel(): LLModel {
-    return LLModel(
-        provider = LLMProvider.OpenRouter,
-        id = id,
-        capabilities = listOf(
-            LLMCapability.Temperature,
-            LLMCapability.Completion,
         )
+    }
+
+    private val glmModel: LLModel = LLModel(
+        provider = LLMProvider.ZhipuAI,
+        id = "glm-4.7-flash",
+        capabilities = listOf(
+            LLMCapability.Completion,
+            LLMCapability.Temperature,
+            LLMCapability.OpenAIEndpoint.Completions,
+        ),
     )
+
+    private val easyAgent: EasyAgent by lazy {
+        EasyAgent(
+            promptExecutor = promptExecutor,
+            model = glmModel,
+            systemPrompt = SYSTEM_PROMPT,
+        )
+    }
+
+    override fun sendMessage(question: String): Flow<String> {
+        return easyAgent.sendMessageStream(
+            systemPrompt = SYSTEM_PROMPT,
+            question = question,
+        )
+    }
 }
 
 private fun missingApiKeyMessage(): String {

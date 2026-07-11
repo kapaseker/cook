@@ -1,7 +1,6 @@
 package chat
 
 import agent.Cook
-import agent.CookModel
 import agent.CookRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -36,8 +36,7 @@ class ChatViewModel(
                     text = initialMessage,
                 )
             ),
-            availableModels = cookRepository.availableModels,
-            selectedModel = cookRepository.defaultModel,
+            modelDisplayName = cookRepository.model.displayName,
         )
     )
 
@@ -49,12 +48,6 @@ class ChatViewModel(
         }
     }
 
-    fun onModelSelected(model: CookModel) {
-        _uiState.update { state ->
-            state.copy(selectedModel = model, error = null)
-        }
-    }
-
     fun sendMessage() {
         val currentState = _uiState.value
         val question = currentState.draft.trim()
@@ -62,7 +55,6 @@ class ChatViewModel(
             return
         }
 
-        val selectedModel = currentState.selectedModel
         val pendingMessageId = nextMessageId()
         _uiState.update { state ->
             state.copy(
@@ -84,41 +76,64 @@ class ChatViewModel(
 
         viewModelScope.launch(Dispatchers.Default) {
             val result = runCatching {
-                cookRepository.ask(
-                    question = question,
-                    model = selectedModel,
-                )
-            }
-            _uiState.update { state ->
-                val messagesWithoutPending = state.messages.filterNot { message ->
-                    message.id == pendingMessageId
-                }
-
-                result.fold(
-                    onSuccess = { answer ->
+                // 流式 collect：每个 chunk 累加到 pending 消息的 text
+                val collected = StringBuilder()
+                cookRepository.sendMessage(question).collect { chunk ->
+                    collected.append(chunk)
+                    _uiState.update { state ->
                         state.copy(
-                            messages = messagesWithoutPending + ChatMessage(
-                                id = nextMessageId(),
-                                author = MessageAuthor.Agent,
-                                text = answer.ifBlank { "The agent returned an empty response." },
-                            ),
+                            messages = state.messages.map { message ->
+                                if (message.id == pendingMessageId) {
+                                    message.copy(text = collected.toString())
+                                } else {
+                                    message
+                                }
+                            }
+                        )
+                    }
+                }
+                collected.toString()
+            }
+
+            _uiState.update { state ->
+                when {
+                    result.isSuccess -> {
+                        val answer = result.getOrThrow()
+                        state.copy(
+                            messages = state.messages.map { message ->
+                                if (message.id == pendingMessageId) {
+                                    message.copy(
+                                        text = answer.ifBlank { "The agent returned an empty response." },
+                                        isPending = false,
+                                    )
+                                } else {
+                                    message
+                                }
+                            },
                             isSending = false,
                             error = null,
                         )
-                    },
-                    onFailure = { throwable ->
-                        val errorText = throwable.message ?: "The agent request failed."
+                    }
+
+                    else -> {
+                        val throwable = result.exceptionOrNull()
+                        val errorText = throwable?.message ?: "The agent request failed."
                         state.copy(
-                            messages = messagesWithoutPending + ChatMessage(
-                                id = nextMessageId(),
-                                author = MessageAuthor.Agent,
-                                text = "I could not answer that request. $errorText",
-                            ),
+                            messages = state.messages.map { message ->
+                                if (message.id == pendingMessageId) {
+                                    message.copy(
+                                        text = "I could not answer that request. $errorText",
+                                        isPending = false,
+                                    )
+                                } else {
+                                    message
+                                }
+                            },
                             isSending = false,
                             error = errorText,
                         )
-                    },
-                )
+                    }
+                }
             }
         }
     }

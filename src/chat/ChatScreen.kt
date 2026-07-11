@@ -1,6 +1,5 @@
 package chat
 
-import agent.CookModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,9 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,18 +23,13 @@ fun ChatScreen(
     state: ChatUiState,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
-    onModelSelected: (CookModel) -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface),
     ) {
-        ChatHeader(
-            availableModels = state.availableModels,
-            selectedModel = state.selectedModel,
-            onModelSelected = onModelSelected,
-        )
+        ChatHeader(modelDisplayName = state.modelDisplayName)
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageList(
             messages = state.messages,
@@ -58,11 +49,7 @@ fun ChatScreen(
 }
 
 @Composable
-private fun ChatHeader(
-    availableModels: List<CookModel>,
-    selectedModel: CookModel,
-    onModelSelected: (CookModel) -> Unit,
-) {
+private fun ChatHeader(modelDisplayName: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -79,59 +66,10 @@ private fun ChatHeader(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "Koog agent running in an Amper Compose Desktop app",
+                text = modelDisplayName,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-
-        ModelDropdown(
-            availableModels = availableModels,
-            selectedModel = selectedModel,
-            onModelSelected = onModelSelected,
-        )
-    }
-}
-
-@Composable
-private fun ModelDropdown(
-    availableModels: List<CookModel>,
-    selectedModel: CookModel,
-    onModelSelected: (CookModel) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val currentLabel = selectedModel.displayName
-
-    Box {
-        OutlinedButton(
-            onClick = { expanded = true },
-            enabled = availableModels.isNotEmpty(),
-        ) {
-            Text(currentLabel)
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            availableModels.forEach { model ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(model.displayName)
-                            Text(
-                                text = model.id,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    },
-                    onClick = {
-                        expanded = false
-                        onModelSelected(model)
-                    },
-                    enabled = model != selectedModel,
-                )
-            }
         }
     }
 }
