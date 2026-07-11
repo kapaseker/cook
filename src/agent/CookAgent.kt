@@ -29,13 +29,13 @@ data class AgentToolCall(
 )
 
 /**
- * 简易 Agent：负责在单次对话中运行「LLM 请求」流式循环。
+ * Cook Agent：负责在单次对话中运行「LLM 请求」流式循环。
  *
  * 当前版本不注册任何工具（ToolRegistry 为空），[maxIterations] 仍保留以便未来扩展：
  * - 无工具时不会进入第二轮循环
  * - 加入工具后可用于多轮工具调用循环
  */
-class EasyAgent(
+class CookAgent(
     private val promptExecutor: PromptExecutor,
     private val model: LLModel,
     private val systemPrompt: String,
