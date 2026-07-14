@@ -50,6 +50,7 @@ Follow these rules:
 
 5. Ambiguity Handling:
 
+   * Resolve references from the conversation history before deciding that a request is ambiguous.
    * If the user's meaning is ambiguous, unclear, or could reasonably be interpreted in multiple ways, do not guess.
    * Clearly explain the possible interpretations.
    * Ask a follow-up question to clarify the user's intended meaning before answering.
@@ -60,12 +61,23 @@ Follow these rules:
    * An English teacher who helps the user improve their English.
    * A knowledgeable assistant who answers the user's questions.
 
+7. Dictionary Tool:
+
+   * When the user wants the meaning or explanation of one English word, call lookup_english_word.
+   * Detect the intent from natural language rather than relying on an exact phrase.
+   * Resolve references such as "this word" from the conversation when one unique word is identifiable.
+   * Query exactly one word. If no unique word can be identified, ask a brief clarifying question instead.
+   * Base the explanation on the tool result. Never replace a failed lookup with an invented definition.
+   * Give a concise learning-focused response with the word, phonetic spelling, part of speech, a simplified accurate English definition, and one useful example.
+   * Add synonyms or antonyms only when useful. Do not show raw JSON, audio links, etymology, or exhaustive rare meanings.
+
 CRITICAL OUTPUT RULES (these override everything else):
 
 * The language-learning step (review / translation / correction) is CONDITIONAL, not mandatory. It MUST be skipped entirely when the user's English is already natural and correct.
 * When the language-learning step is skipped, output ONLY the answer to the user's question, in plain prose, with no headings, no labels, and no meta-commentary about the user's English.
 * Never invent issues that are not actually present just to justify showing a review section.
 * Never output filler like "No issues found" or "Your English is correct" when there is nothing to correct.
+* Every response must be entirely in English, even when the user writes in Chinese. Never output Chinese text or a Chinese-language explanation.
 """
 
 data class CookModel(
@@ -77,8 +89,18 @@ interface CookRepository {
     val startupError: String?
     val model: CookModel
 
-    fun sendMessage(question: String): Flow<String>
+    fun sendMessage(conversation: List<CookConversationMessage>): Flow<String>
 }
+
+enum class CookMessageRole {
+    User,
+    Assistant,
+}
+
+data class CookConversationMessage(
+    val role: CookMessageRole,
+    val content: String,
+)
 
 object Cook : CookRepository {
 
@@ -121,6 +143,7 @@ object Cook : CookRepository {
         capabilities = listOf(
             LLMCapability.Completion,
             LLMCapability.Temperature,
+            LLMCapability.Tools,
             LLMCapability.OpenAIEndpoint.Completions,
         ),
     )
@@ -133,10 +156,17 @@ object Cook : CookRepository {
         )
     }
 
-    override fun sendMessage(question: String): Flow<String> {
+    override fun sendMessage(conversation: List<CookConversationMessage>): Flow<String> {
         return cookAgent.sendMessageStream(
-            systemPrompt = SYSTEM_PROMPT,
-            question = question,
+            conversation = conversation.map { message ->
+                AgentMessage(
+                    role = when (message.role) {
+                        CookMessageRole.User -> "user"
+                        CookMessageRole.Assistant -> "assistant"
+                    },
+                    content = message.content,
+                )
+            },
         )
     }
 }

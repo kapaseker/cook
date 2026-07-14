@@ -1,6 +1,8 @@
 package chat
 
 import agent.Cook
+import agent.CookConversationMessage
+import agent.CookMessageRole
 import agent.CookRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -55,6 +57,23 @@ class ChatViewModel(
             return
         }
 
+        val conversation = currentState.messages.mapNotNull { message ->
+            if (message.isPending || message.text.isBlank()) {
+                null
+            } else {
+                CookConversationMessage(
+                    role = when (message.author) {
+                        MessageAuthor.User -> CookMessageRole.User
+                        MessageAuthor.Agent -> CookMessageRole.Assistant
+                    },
+                    content = message.text,
+                )
+            }
+        } + CookConversationMessage(
+            role = CookMessageRole.User,
+            content = question,
+        )
+
         val pendingMessageId = nextMessageId()
         _uiState.update { state ->
             state.copy(
@@ -78,7 +97,7 @@ class ChatViewModel(
             val result = runCatching {
                 // 流式 collect：每个 chunk 累加到 pending 消息的 text
                 val collected = StringBuilder()
-                cookRepository.sendMessage(question).collect { chunk ->
+                cookRepository.sendMessage(conversation).collect { chunk ->
                     collected.append(chunk)
                     _uiState.update { state ->
                         state.copy(
