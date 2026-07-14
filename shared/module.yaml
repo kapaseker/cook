@@ -1,6 +1,6 @@
 product:
   type: kmp/lib
-  platforms: [jvm, android]
+  platforms: [jvm]
 
 dependencies:
   - $compose.foundation: exported
