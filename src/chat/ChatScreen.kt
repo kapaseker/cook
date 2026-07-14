@@ -80,10 +80,11 @@ private fun MessageList(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val scrollKey = latestMessageScrollKey(messages)
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.lastIndex)
+    LaunchedEffect(scrollKey) {
+        if (scrollKey != null) {
+            listState.scrollToItem(messages.size)
         }
     }
 
@@ -98,8 +99,14 @@ private fun MessageList(
         ) { index ->
             MessageBubble(message = messages[index])
         }
+        item(key = "message-list-end") {
+            Spacer(modifier = Modifier.height(1.dp))
+        }
     }
 }
+
+internal fun latestMessageScrollKey(messages: List<ChatMessage>): Pair<Long, String>? =
+    messages.lastOrNull()?.let { message -> message.id to message.text }
 
 @Composable
 private fun MessageBubble(message: ChatMessage) {
