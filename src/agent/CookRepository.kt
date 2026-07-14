@@ -86,11 +86,19 @@ data class CookModel(
 )
 
 interface CookRepository {
-    val startupError: String?
+    val startupIssue: CookStartupIssue?
     val model: CookModel
 
     fun sendMessage(conversation: List<CookConversationMessage>): Flow<String>
 }
+
+enum class CookStartupIssue {
+    MissingApiKey,
+}
+
+internal class CookStartupException(
+    val issue: CookStartupIssue,
+) : IllegalStateException()
 
 enum class CookMessageRole {
     User,
@@ -109,9 +117,9 @@ object Cook : CookRepository {
         displayName = "GLM-4.7 Flash",
     )
 
-    override val startupError: String?
+    override val startupIssue: CookStartupIssue?
         get() = if (System.getenv(ENV_KEY).isNullOrBlank()) {
-            missingApiKeyMessage()
+            CookStartupIssue.MissingApiKey
         } else {
             null
         }
@@ -119,8 +127,8 @@ object Cook : CookRepository {
     private val promptExecutor: PromptExecutor by lazy {
         val apiKey = System.getenv(ENV_KEY)
 
-        require(!apiKey.isNullOrBlank()) {
-            missingApiKeyMessage()
+        if (apiKey.isNullOrBlank()) {
+            throw CookStartupException(CookStartupIssue.MissingApiKey)
         }
 
         MultiLLMPromptExecutor(
@@ -169,8 +177,4 @@ object Cook : CookRepository {
             },
         )
     }
-}
-
-private fun missingApiKeyMessage(): String {
-    return "Set the $ENV_KEY environment variable before starting Cook."
 }

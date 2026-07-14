@@ -7,24 +7,30 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import chat.ChatScreen
 import chat.ChatViewModel
+import chat.chatStrings
+import cook.generated.resources.Res
+import cook.generated.resources.app_name
+import theme.CookDimensions
+import theme.CookTheme
 import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.io.PrintStream
 import java.nio.charset.StandardCharsets
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 @Preview
 fun App() {
-    val viewModel = viewModel { ChatViewModel() }
+    val strings = chatStrings()
+    val viewModel = viewModel { ChatViewModel(strings = strings) }
     val state by viewModel.uiState.collectAsState()
 
-    MaterialTheme {
+    CookTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
@@ -44,9 +50,12 @@ fun main() {
     application {
         Window(
             onCloseRequest = ::exitApplication,
-            state = rememberWindowState(width = 1280.dp, height = 720.dp),
+            state = rememberWindowState(
+                width = CookDimensions.windowWidth,
+                height = CookDimensions.windowHeight,
+            ),
             undecorated = false,
-            title = "Cook",
+            title = stringResource(Res.string.app_name),
         ) {
             App()
         }

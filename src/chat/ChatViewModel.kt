@@ -1,33 +1,26 @@
 package chat
 
-import agent.Cook
-import agent.CookConversationMessage
-import agent.CookMessageRole
-import agent.CookRepository
+import agent.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val HELLO =
-"""
-Hi, I'm Cook. 👋
-
-Talk to me in English or Chinese, and I'll help you improve your English along the way.
-"""
-
 class ChatViewModel(
     private val cookRepository: CookRepository = Cook,
+    private val strings: ChatStrings,
 ) : ViewModel() {
 
     private var nextId = 0L
 
-    private val initialMessage = cookRepository.startupError ?: HELLO
+    private val initialMessage = when (cookRepository.startupIssue) {
+        CookStartupIssue.MissingApiKey -> strings.missingApiKey
+        null -> strings.welcomeMessage
+    }
 
     private val _uiState = MutableStateFlow(
         ChatUiState(
@@ -84,7 +77,7 @@ class ChatViewModel(
                 ) + ChatMessage(
                     id = pendingMessageId,
                     author = MessageAuthor.Agent,
-                    text = "Thinking...",
+                    text = strings.thinking,
                     isPending = true,
                 ),
                 draft = "",
@@ -122,7 +115,7 @@ class ChatViewModel(
                             messages = state.messages.map { message ->
                                 if (message.id == pendingMessageId) {
                                     message.copy(
-                                        text = answer.ifBlank { "The agent returned an empty response." },
+                                        text = answer.ifBlank { strings.emptyResponse },
                                         isPending = false,
                                     )
                                 } else {
@@ -136,12 +129,17 @@ class ChatViewModel(
 
                     else -> {
                         val throwable = result.exceptionOrNull()
-                        val errorText = throwable?.message ?: "The agent request failed."
+                        val errorText = when (throwable) {
+                            is CookStartupException -> when (throwable.issue) {
+                                CookStartupIssue.MissingApiKey -> strings.missingApiKey
+                            }
+                            else -> throwable?.message ?: strings.agentRequestFailed
+                        }
                         state.copy(
                             messages = state.messages.map { message ->
                                 if (message.id == pendingMessageId) {
                                     message.copy(
-                                        text = "I could not answer that request. $errorText",
+                                        text = "${strings.couldNotAnswer} $errorText",
                                         isPending = false,
                                     )
                                 } else {

@@ -4,19 +4,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.dp
+import cook.generated.resources.Res
+import cook.generated.resources.app_name
+import cook.generated.resources.message_placeholder
+import cook.generated.resources.send
+import cook.generated.resources.sending
+import cook.generated.resources.user_label
+import theme.CookDimensions
+import theme.CookOpacity
+import theme.CookShapes
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ChatScreen(
@@ -53,15 +60,18 @@ private fun ChatHeader(modelDisplayName: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
+            .padding(
+                horizontal = CookDimensions.contentHorizontalPadding,
+                vertical = CookDimensions.contentVerticalPadding,
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(CookDimensions.headerTextSpacing),
         ) {
             Text(
-                text = "Cook",
+                text = stringResource(Res.string.app_name),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -89,9 +99,12 @@ private fun MessageList(
     }
 
     LazyColumn(
-        modifier = modifier.padding(horizontal = 24.dp, vertical = 18.dp),
+        modifier = modifier.padding(
+            horizontal = CookDimensions.contentHorizontalPadding,
+            vertical = CookDimensions.contentVerticalPadding,
+        ),
         state = listState,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(CookDimensions.messageSpacing),
     ) {
         items(
             count = messages.size,
@@ -100,7 +113,7 @@ private fun MessageList(
             MessageBubble(message = messages[index])
         }
         item(key = "message-list-end") {
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height(CookDimensions.listEndAnchorHeight))
         }
     }
 }
@@ -127,26 +140,31 @@ private fun MessageBubble(message: ChatMessage) {
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         Column(
-            modifier = Modifier.widthIn(max = 560.dp),
+            modifier = Modifier.widthIn(max = CookDimensions.messageMaxWidth),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(CookDimensions.messageLabelSpacing),
         ) {
             Text(
-                text = if (isUser) "You" else "Cook",
+                text = stringResource(
+                    if (isUser) Res.string.user_label else Res.string.app_name,
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(CookShapes.messageBubble)
                     .background(bubbleColor)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(
+                        horizontal = CookDimensions.messageBubbleHorizontalPadding,
+                        vertical = CookDimensions.messageBubbleVerticalPadding,
+                    ),
             ) {
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (message.isPending) {
-                        textColor.copy(alpha = 0.72f)
+                        textColor.copy(alpha = CookOpacity.pendingMessage)
                     } else {
                         textColor
                     },
@@ -169,8 +187,8 @@ private fun MessageComposer(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(CookDimensions.composerPadding),
+        verticalArrangement = Arrangement.spacedBy(CookDimensions.composerSpacing),
     ) {
         if (error != null) {
             Text(
@@ -181,7 +199,7 @@ private fun MessageComposer(
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(CookDimensions.composerRowSpacing),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
@@ -202,7 +220,7 @@ private fun MessageComposer(
                         }
                     },
                 enabled = !isSending,
-                placeholder = { Text("Message Cook") },
+                placeholder = { Text(stringResource(Res.string.message_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
@@ -210,9 +228,11 @@ private fun MessageComposer(
             Button(
                 onClick = onSend,
                 enabled = canSend,
-                modifier = Modifier.height(56.dp),
+                modifier = Modifier.height(CookDimensions.sendButtonHeight),
             ) {
-                Text(if (isSending) "Sending" else "Send")
+                Text(
+                    stringResource(if (isSending) Res.string.sending else Res.string.send),
+                )
             }
         }
     }
