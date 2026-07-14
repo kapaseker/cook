@@ -1,0 +1,13 @@
+product: jvm/app
+
+dependencies:
+  - ../shared
+  - $compose.desktop.currentOs
+  - org.jetbrains.compose.components:components-resources:1.10.3
+
+settings:
+  compose: enabled
+  jvm:
+    jdk:
+      version: 25
+      selectionMode: javaHome

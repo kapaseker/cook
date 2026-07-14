@@ -35,6 +35,21 @@ class ChatViewModelTest {
 
         assertEquals(startupError, viewModel.uiState.value.messages.single().text)
     }
+
+    @Test
+    fun `shows the unsupported platform message for non desktop implementations`() {
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepository(
+                startupIssue = CookStartupIssue.UnsupportedPlatform,
+            ),
+            strings = testChatStrings,
+        )
+
+        assertEquals(
+            "Cook's AI agent is currently available on Desktop only.",
+            viewModel.uiState.value.messages.single().text,
+        )
+    }
 }
 
 private class FakeCookRepository(
@@ -53,4 +68,5 @@ private val testChatStrings = ChatStrings(
     agentRequestFailed = "The agent request failed.",
     couldNotAnswer = "I could not answer that request.",
     missingApiKey = "Set the GLM_API_KEY environment variable before starting Cook.",
+    unsupportedPlatform = "Cook's AI agent is currently available on Desktop only.",
 )

@@ -80,37 +80,7 @@ CRITICAL OUTPUT RULES (these override everything else):
 * Every response must be entirely in English, even when the user writes in Chinese. Never output Chinese text or a Chinese-language explanation.
 """
 
-data class CookModel(
-    val id: String,
-    val displayName: String,
-)
-
-interface CookRepository {
-    val startupIssue: CookStartupIssue?
-    val model: CookModel
-
-    fun sendMessage(conversation: List<CookConversationMessage>): Flow<String>
-}
-
-enum class CookStartupIssue {
-    MissingApiKey,
-}
-
-internal class CookStartupException(
-    val issue: CookStartupIssue,
-) : IllegalStateException()
-
-enum class CookMessageRole {
-    User,
-    Assistant,
-}
-
-data class CookConversationMessage(
-    val role: CookMessageRole,
-    val content: String,
-)
-
-object Cook : CookRepository {
+private object Cook : CookRepository {
 
     override val model: CookModel = CookModel(
         id = "glm-4.7-flash",
@@ -178,3 +148,5 @@ object Cook : CookRepository {
         )
     }
 }
+
+internal actual fun createCookRepository(): CookRepository = Cook

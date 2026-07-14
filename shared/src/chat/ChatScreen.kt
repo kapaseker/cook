@@ -18,11 +18,14 @@ import cook.generated.resources.Res
 import cook.generated.resources.app_name
 import cook.generated.resources.message_placeholder
 import cook.generated.resources.send
+import cook.generated.resources.settings
+import cook.generated.resources.settings_icon
 import cook.generated.resources.sending
 import cook.generated.resources.user_label
 import theme.CookDimensions
 import theme.CookOpacity
 import theme.CookShapes
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -30,13 +33,17 @@ fun ChatScreen(
     state: ChatUiState,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface),
     ) {
-        ChatHeader(modelDisplayName = state.modelDisplayName)
+        ChatHeader(
+            modelDisplayName = state.modelDisplayName,
+            onOpenSettings = onOpenSettings,
+        )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageList(
             messages = state.messages,
@@ -56,7 +63,10 @@ fun ChatScreen(
 }
 
 @Composable
-private fun ChatHeader(modelDisplayName: String) {
+private fun ChatHeader(
+    modelDisplayName: String,
+    onOpenSettings: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -79,6 +89,12 @@ private fun ChatHeader(modelDisplayName: String) {
                 text = modelDisplayName,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconButton(onClick = onOpenSettings) {
+            Icon(
+                painter = painterResource(Res.drawable.settings_icon),
+                contentDescription = stringResource(Res.string.settings),
             )
         }
     }

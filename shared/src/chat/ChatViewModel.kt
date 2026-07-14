@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
-    private val cookRepository: CookRepository = Cook,
+    private val cookRepository: CookRepository,
     private val strings: ChatStrings,
 ) : ViewModel() {
 
@@ -19,6 +19,7 @@ class ChatViewModel(
 
     private val initialMessage = when (cookRepository.startupIssue) {
         CookStartupIssue.MissingApiKey -> strings.missingApiKey
+        CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
         null -> strings.welcomeMessage
     }
 
@@ -132,6 +133,7 @@ class ChatViewModel(
                         val errorText = when (throwable) {
                             is CookStartupException -> when (throwable.issue) {
                                 CookStartupIssue.MissingApiKey -> strings.missingApiKey
+                                CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
                             }
                             else -> throwable?.message ?: strings.agentRequestFailed
                         }
