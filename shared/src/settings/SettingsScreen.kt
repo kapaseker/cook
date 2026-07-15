@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import cook.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import widget.MediumIconButton
 
 @Composable
 internal fun SettingsScreen(
@@ -105,12 +106,11 @@ private fun SettingsHeader(onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_left),
-                contentDescription = stringResource(Res.string.back),
-            )
-        }
+        MediumIconButton(
+            onClick = onBack,
+            painter = painterResource(Res.drawable.ic_left),
+            contentDescription = stringResource(Res.string.back),
+        )
         Text(
             text = stringResource(Res.string.settings),
             style = MaterialTheme.typography.headlineSmall,

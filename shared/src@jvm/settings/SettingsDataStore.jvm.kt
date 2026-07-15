@@ -22,5 +22,7 @@ private val settingsDataStore: DataStore<Preferences> by lazy {
     )
 }
 
+fun windowStatePreferences(): WindowStatePreferences = WindowStatePreferences(settingsDataStore)
+
 @Composable
 internal actual fun rememberSettingsDataStore(): DataStore<Preferences> = settingsDataStore

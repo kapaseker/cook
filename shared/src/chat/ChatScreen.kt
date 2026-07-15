@@ -20,6 +20,7 @@ import org.jetbrains.compose.resources.stringResource
 import theme.CookDimensions
 import theme.CookOpacity
 import theme.CookShapes
+import widget.MediumIconButton
 
 @Composable
 fun ChatScreen(
@@ -29,9 +30,7 @@ fun ChatScreen(
     onOpenSettings: () -> Unit,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
     ) {
         ChatHeader(
             modelDisplayName = state.modelDisplayName,
@@ -40,9 +39,7 @@ fun ChatScreen(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageList(
             messages = state.messages,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageComposer(
@@ -61,12 +58,10 @@ private fun ChatHeader(
     onOpenSettings: () -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = CookDimensions.contentHorizontalPadding,
-                vertical = CookDimensions.contentVerticalPadding,
-            ),
+        modifier = Modifier.fillMaxWidth().padding(
+            horizontal = CookDimensions.contentHorizontalPadding,
+            vertical = CookDimensions.contentVerticalPadding,
+        ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -84,12 +79,11 @@ private fun ChatHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        IconButton(onClick = onOpenSettings) {
-            Icon(
-                painter = painterResource(Res.drawable.ic_settings),
-                contentDescription = stringResource(Res.string.settings),
-            )
-        }
+        MediumIconButton(
+            onClick = onOpenSettings,
+            painter = painterResource(Res.drawable.ic_settings),
+            contentDescription = stringResource(Res.string.settings),
+        )
     }
 }
 
@@ -161,13 +155,10 @@ private fun MessageBubble(message: ChatMessage) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Box(
-                modifier = Modifier
-                    .clip(CookShapes.messageBubble)
-                    .background(bubbleColor)
-                    .padding(
-                        horizontal = CookDimensions.messageBubbleHorizontalPadding,
-                        vertical = CookDimensions.messageBubbleVerticalPadding,
-                    ),
+                modifier = Modifier.clip(CookShapes.messageBubble).background(bubbleColor).padding(
+                    horizontal = CookDimensions.messageBubbleHorizontalPadding,
+                    vertical = CookDimensions.messageBubbleVerticalPadding,
+                ),
             ) {
                 Text(
                     text = message.text,
@@ -194,9 +185,7 @@ private fun MessageComposer(
     val canSend = draft.isNotBlank() && !isSending
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(CookDimensions.composerPadding),
+        modifier = Modifier.fillMaxWidth().padding(CookDimensions.composerPadding),
         verticalArrangement = Arrangement.spacedBy(CookDimensions.composerSpacing),
     ) {
         if (error != null) {
@@ -214,20 +203,14 @@ private fun MessageComposer(
             OutlinedTextField(
                 value = draft,
                 onValueChange = onDraftChanged,
-                modifier = Modifier
-                    .weight(1f)
-                    .onPreviewKeyEvent { event ->
-                        if (
-                            event.key == Key.Enter &&
-                            event.type == KeyEventType.KeyUp &&
-                            canSend
-                        ) {
-                            onSend()
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                modifier = Modifier.weight(1f).onPreviewKeyEvent { event ->
+                    if (event.key == Key.Enter && event.type == KeyEventType.KeyUp && canSend) {
+                        onSend()
+                        true
+                    } else {
+                        false
+                    }
+                },
                 enabled = !isSending,
                 placeholder = { Text(stringResource(Res.string.message_placeholder)) },
                 singleLine = true,

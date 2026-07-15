@@ -1,31 +1,36 @@
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
-import androidx.compose.ui.window.rememberWindowState
-import cook.generated.resources.Res
-import cook.generated.resources.app_name
 import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.io.PrintStream
 import java.nio.charset.StandardCharsets
-import org.jetbrains.compose.resources.stringResource
-import theme.CookDimensions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import settings.SavedWindowState
+import settings.WindowStatePreferences
+import settings.windowStatePreferences
 
 fun main() {
     configureUtf8ConsoleOutput()
+    val preferences = windowStatePreferences()
+    val initialWindowState = loadInitialWindowState(preferences)
 
     application {
-        Window(
-            onCloseRequest = ::exitApplication,
-            state = rememberWindowState(
-                width = CookDimensions.windowWidth,
-                height = CookDimensions.windowHeight,
-            ),
-            undecorated = false,
-            title = stringResource(Res.string.app_name),
-        ) {
-            CookApp()
-        }
+        CookWindow(initialWindowState, preferences)
     }
+}
+
+private fun loadInitialWindowState(preferences: WindowStatePreferences): SavedWindowState? {
+    val savedState = runBlocking(Dispatchers.IO) {
+        try {
+            preferences.load()
+        } catch (error: Exception) {
+            System.err.println("Unable to load window state: ${error.message}")
+            null
+        }
+    } ?: return null
+    val (workAreas, defaultWorkArea) = currentScreenWorkAreas()
+
+    return savedState.clampToVisibleScreen(workAreas, defaultWorkArea)
 }
 
 private fun configureUtf8ConsoleOutput() {
