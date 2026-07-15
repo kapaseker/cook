@@ -1,4 +1,4 @@
-package chat
+package page.chat.biz
 
 enum class MessageAuthor {
     User,

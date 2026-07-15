@@ -1,4 +1,4 @@
-package settings
+package page.settings.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,9 +13,13 @@ import cook.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import widget.MediumIconButton
+import page.settings.biz.textScaleLabel
+import repository.settings.MaximumTextScale
+import repository.settings.MinimumTextScale
+import repository.settings.TextScaleSliderSteps
 
 @Composable
-internal fun SettingsScreen(
+internal fun SettingsContentScreen(
     selectedScale: Float,
     isDeviceDefault: Boolean,
     loadFailed: Boolean,

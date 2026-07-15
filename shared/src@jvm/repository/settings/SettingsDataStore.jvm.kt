@@ -1,4 +1,4 @@
-package settings
+package repository.settings
 
 import androidx.compose.runtime.Composable
 import androidx.datastore.core.DataStore
@@ -9,7 +9,7 @@ import java.io.File
 import okio.FileSystem
 import okio.Path.Companion.toPath
 
-private val settingsDataStore: DataStore<Preferences> by lazy {
+internal val settingsDataStore: DataStore<Preferences> by lazy {
     val settingsDirectory = File(System.getProperty("user.home"), ".cook")
     createSettingsDataStore(
         storage = OkioStorage(
@@ -21,8 +21,6 @@ private val settingsDataStore: DataStore<Preferences> by lazy {
         ),
     )
 }
-
-fun windowStatePreferences(): WindowStatePreferences = WindowStatePreferences(settingsDataStore)
 
 @Composable
 internal actual fun rememberSettingsDataStore(): DataStore<Preferences> = settingsDataStore

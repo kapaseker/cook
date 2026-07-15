@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import settings.injectedFontScale
+import page.settings.biz.injectedFontScale
 
 @Composable
 fun CookTheme(

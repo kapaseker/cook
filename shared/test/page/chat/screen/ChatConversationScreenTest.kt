@@ -1,9 +1,11 @@
-package chat
+package page.chat.screen
 
+import page.chat.biz.ChatMessage
+import page.chat.biz.MessageAuthor
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
 
-class ChatScreenTest {
+class ChatConversationScreenTest {
 
     @Test
     fun `scroll trigger changes when the latest message streams more text`() {

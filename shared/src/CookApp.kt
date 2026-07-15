@@ -1,4 +1,3 @@
-import agent.createCookRepository
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,19 +18,17 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
-import chat.ChatScreen
-import chat.ChatViewModel
-import chat.chatStrings
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import navigation.ChatRoute
 import navigation.SettingsRoute
-import settings.SettingsScreen
-import settings.SettingsViewModel
-import settings.TextScalePreferences
-import settings.rememberSettingsDataStore
-import settings.selectedTextScale
+import page.chat.ChatPage
+import page.settings.SettingsPage
+import page.settings.biz.SettingsViewModel
+import page.settings.biz.selectedTextScale
+import repository.settings.DataStoreTextScaleRepository
+import repository.settings.rememberSettingsDataStore
 import theme.CookTheme
 
 private val navigationStateConfiguration = SavedStateConfiguration {
@@ -48,7 +45,7 @@ private val navigationStateConfiguration = SavedStateConfiguration {
 fun CookApp() {
     val dataStore = rememberSettingsDataStore()
     val settingsViewModel = viewModel {
-        SettingsViewModel(TextScalePreferences(dataStore))
+        SettingsViewModel(DataStoreTextScaleRepository(dataStore))
     }
     val settingsState by settingsViewModel.uiState.collectAsState()
     val systemDensity = LocalDensity.current
@@ -84,7 +81,7 @@ fun CookApp() {
                 ),
                 entryProvider = entryProvider {
                     entry<ChatRoute> {
-                        ChatDestination(
+                        ChatPage(
                             onOpenSettings = {
                                 if (backStack.lastOrNull() != SettingsRoute) {
                                     backStack.add(SettingsRoute)
@@ -93,11 +90,9 @@ fun CookApp() {
                         )
                     }
                     entry<SettingsRoute> {
-                        SettingsScreen(
+                        SettingsPage(
+                            state = settingsState,
                             selectedScale = selectedScale,
-                            isDeviceDefault = settingsState.userScale == null,
-                            loadFailed = settingsState.loadFailed,
-                            saveFailed = settingsState.saveFailed,
                             onScaleChanged = settingsViewModel::previewScale,
                             onScaleChangeFinished = settingsViewModel::savePreviewedScale,
                             onResetToDeviceDefault = settingsViewModel::resetToDeviceDefault,
@@ -118,23 +113,4 @@ private fun LoadingScreen() {
     ) {
         CircularProgressIndicator()
     }
-}
-
-@Composable
-private fun ChatDestination(onOpenSettings: () -> Unit) {
-    val strings = chatStrings()
-    val viewModel = viewModel {
-        ChatViewModel(
-            cookRepository = createCookRepository(),
-            strings = strings,
-        )
-    }
-    val state by viewModel.uiState.collectAsState()
-
-    ChatScreen(
-        state = state,
-        onDraftChanged = viewModel::onDraftChanged,
-        onSend = viewModel::sendMessage,
-        onOpenSettings = onOpenSettings,
-    )
 }

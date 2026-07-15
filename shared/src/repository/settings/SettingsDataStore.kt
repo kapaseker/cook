@@ -1,4 +1,4 @@
-package settings
+package repository.settings
 
 import androidx.compose.runtime.Composable
 import androidx.datastore.core.DataStore

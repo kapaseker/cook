@@ -1,4 +1,4 @@
-package chat
+package page.chat.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,9 +21,12 @@ import theme.CookDimensions
 import theme.CookOpacity
 import theme.CookShapes
 import widget.MediumIconButton
+import page.chat.biz.ChatMessage
+import page.chat.biz.ChatUiState
+import page.chat.biz.MessageAuthor
 
 @Composable
-fun ChatScreen(
+internal fun ChatConversationScreen(
     state: ChatUiState,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,

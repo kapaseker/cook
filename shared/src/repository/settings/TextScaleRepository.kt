@@ -1,4 +1,4 @@
-package settings
+package repository.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -7,22 +7,30 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-internal class TextScalePreferences(
+internal interface TextScaleRepository {
+    val userScale: Flow<Float?>
+
+    suspend fun setUserScale(scale: Float)
+
+    suspend fun clearUserScale()
+}
+
+internal class DataStoreTextScaleRepository(
     private val dataStore: DataStore<Preferences>,
-) {
-    val userScale: Flow<Float?> = dataStore.data.map { preferences ->
+) : TextScaleRepository {
+    override val userScale: Flow<Float?> = dataStore.data.map { preferences ->
         preferences[UserTextScaleKey]
             ?.takeIf { scale -> scale.isFinite() }
             ?.let(::normalizeTextScale)
     }
 
-    suspend fun setUserScale(scale: Float) {
+    override suspend fun setUserScale(scale: Float) {
         dataStore.edit { preferences ->
             preferences[UserTextScaleKey] = normalizeTextScale(scale)
         }
     }
 
-    suspend fun clearUserScale() {
+    override suspend fun clearUserScale() {
         dataStore.edit { preferences ->
             preferences.remove(UserTextScaleKey)
         }

@@ -1,4 +1,4 @@
-package settings
+package page.settings.biz
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import repository.settings.TextScaleRepository
+import repository.settings.normalizeTextScale
 
 internal data class SettingsUiState(
     val isLoaded: Boolean = false,
@@ -17,14 +19,14 @@ internal data class SettingsUiState(
 )
 
 internal class SettingsViewModel(
-    private val preferences: TextScalePreferences,
+    private val repository: TextScaleRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            runCatching { preferences.userScale.first() }
+            runCatching { repository.userScale.first() }
                 .onSuccess { userScale ->
                     _uiState.update { state ->
                         state.copy(
@@ -51,7 +53,7 @@ internal class SettingsViewModel(
     fun savePreviewedScale() {
         val scale = _uiState.value.userScale ?: return
         viewModelScope.launch {
-            runCatching { preferences.setUserScale(scale) }
+            runCatching { repository.setUserScale(scale) }
                 .onFailure {
                     _uiState.update { state -> state.copy(saveFailed = true) }
                 }
@@ -63,7 +65,7 @@ internal class SettingsViewModel(
             state.copy(userScale = null, saveFailed = false)
         }
         viewModelScope.launch {
-            runCatching { preferences.clearUserScale() }
+            runCatching { repository.clearUserScale() }
                 .onFailure {
                     _uiState.update { state -> state.copy(saveFailed = true) }
                 }

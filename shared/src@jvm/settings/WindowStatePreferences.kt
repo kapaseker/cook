@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import kotlinx.coroutines.flow.first
+import repository.settings.settingsDataStore
 
 data class SavedWindowState(
     val x: Int,
@@ -57,3 +58,5 @@ class WindowStatePreferences internal constructor(
         val WindowMaximizedKey = booleanPreferencesKey("window_maximized")
     }
 }
+
+fun windowStatePreferences(): WindowStatePreferences = WindowStatePreferences(settingsDataStore)

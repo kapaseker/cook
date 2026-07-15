@@ -1,9 +1,10 @@
-package chat
+package page.chat.biz
 
-import agent.CookConversationMessage
-import agent.CookModel
-import agent.CookRepository
-import agent.CookStartupIssue
+import page.chat.ChatStrings
+import repository.agent.CookConversationMessage
+import repository.agent.CookModel
+import repository.agent.CookRepository
+import repository.agent.CookStartupIssue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlin.test.Test

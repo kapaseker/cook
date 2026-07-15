@@ -1,5 +1,7 @@
-package agent
+package repository.agent
 
+import agent.AgentMessage
+import agent.CookAgent
 import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
@@ -80,7 +82,7 @@ CRITICAL OUTPUT RULES (these override everything else):
 * Every response must be entirely in English, even when the user writes in Chinese. Never output Chinese text or a Chinese-language explanation.
 """
 
-private object Cook : CookRepository {
+private object DesktopCookRepository : CookRepository {
 
     override val model: CookModel = CookModel(
         id = "glm-4.7-flash",
@@ -149,4 +151,4 @@ private object Cook : CookRepository {
     }
 }
 
-internal actual fun createCookRepository(): CookRepository = Cook
+internal actual fun createCookRepository(): CookRepository = DesktopCookRepository

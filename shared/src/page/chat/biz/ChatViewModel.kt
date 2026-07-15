@@ -1,6 +1,6 @@
-package chat
+package page.chat.biz
 
-import agent.*
+import repository.agent.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import page.chat.ChatStrings
 
 class ChatViewModel(
     private val cookRepository: CookRepository,

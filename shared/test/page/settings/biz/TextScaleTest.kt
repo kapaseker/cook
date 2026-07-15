@@ -1,4 +1,4 @@
-package settings
+package page.settings.biz
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

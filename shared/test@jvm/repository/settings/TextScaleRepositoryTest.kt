@@ -1,4 +1,4 @@
-package settings
+package repository.settings
 
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.okio.OkioStorage
@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-class TextScalePreferencesTest {
+class TextScaleRepositoryTest {
     @Test
     fun `user override can be saved and removed`() = runBlocking {
         val directory = Files.createTempDirectory("cook-settings-test").toFile()
@@ -32,7 +32,7 @@ class TextScalePreferencesTest {
             ),
             scope = scope,
         )
-        val preferences = TextScalePreferences(dataStore)
+        val preferences = DataStoreTextScaleRepository(dataStore)
 
         try {
             assertNull(preferences.userScale.first())

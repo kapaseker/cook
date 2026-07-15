@@ -1,4 +1,4 @@
-package chat
+package page.chat
 
 import androidx.compose.runtime.Composable
 import cook.generated.resources.Res
