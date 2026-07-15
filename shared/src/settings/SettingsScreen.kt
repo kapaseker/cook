@@ -1,39 +1,15 @@
 package settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import cook.generated.resources.Res
-import cook.generated.resources.back
-import cook.generated.resources.back_icon
-import cook.generated.resources.custom_scale
-import cook.generated.resources.device_default_scale
-import cook.generated.resources.preview
-import cook.generated.resources.preview_body
-import cook.generated.resources.preview_label
-import cook.generated.resources.preview_title
-import cook.generated.resources.reset_to_device_default
-import cook.generated.resources.settings
-import cook.generated.resources.text_scale
-import cook.generated.resources.text_scale_load_failed
-import cook.generated.resources.text_scale_save_failed
+import cook.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -131,7 +107,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
     ) {
         IconButton(onClick = onBack) {
             Icon(
-                painter = painterResource(Res.drawable.back_icon),
+                painter = painterResource(Res.drawable.ic_left),
                 contentDescription = stringResource(Res.string.back),
             )
         }

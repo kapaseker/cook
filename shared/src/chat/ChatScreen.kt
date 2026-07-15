@@ -14,19 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.input.ImeAction
-import cook.generated.resources.Res
-import cook.generated.resources.app_name
-import cook.generated.resources.message_placeholder
-import cook.generated.resources.send
-import cook.generated.resources.settings
-import cook.generated.resources.settings_icon
-import cook.generated.resources.sending
-import cook.generated.resources.user_label
+import cook.generated.resources.*
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import theme.CookDimensions
 import theme.CookOpacity
 import theme.CookShapes
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ChatScreen(
@@ -93,7 +86,7 @@ private fun ChatHeader(
         }
         IconButton(onClick = onOpenSettings) {
             Icon(
-                painter = painterResource(Res.drawable.settings_icon),
+                painter = painterResource(Res.drawable.ic_settings),
                 contentDescription = stringResource(Res.string.settings),
             )
         }
