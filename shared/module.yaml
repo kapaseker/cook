@@ -5,7 +5,7 @@ product:
 dependencies:
   - $compose.foundation: exported
   - $compose.material3: exported
-  - org.jetbrains.compose.ui:ui-tooling-preview:1.10.3
+  - $compose.preview
   - androidx.datastore:datastore:1.2.1
   - androidx.datastore:datastore-core-okio:1.2.1
   - androidx.datastore:datastore-preferences:1.2.1
@@ -32,5 +32,5 @@ settings:
     serialization: json
   jvm:
     jdk:
-      version: 25
+#      version: 25
       selectionMode: javaHome
