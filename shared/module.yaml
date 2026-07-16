@@ -30,7 +30,3 @@ settings:
       packageName: cook.generated.resources
   kotlin:
     serialization: json
-  jvm:
-    jdk:
-#      version: 25
-      selectionMode: javaHome
