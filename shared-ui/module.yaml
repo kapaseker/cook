@@ -15,6 +15,9 @@ dependencies:
   - io.insert-koin:koin-core-viewmodel:4.2.2
   - io.insert-koin:koin-compose-viewmodel:4.2.2
 
+dependencies@jvm:
+  - $compose.desktop.currentOs
+
 settings:
   compose:
     enabled: true
