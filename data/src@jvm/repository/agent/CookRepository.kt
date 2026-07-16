@@ -139,6 +139,7 @@ internal class CookRepository(
         )
     }
 
+    /** Streams the assistant response for the supplied conversation. */
     override fun sendMessage(conversation: List<CookConversationMessage>): Flow<String> {
         return cookAgent.sendMessageStream(
             conversation = conversation.map { message ->

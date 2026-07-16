@@ -18,6 +18,7 @@ import repository.settings.MaximumTextScale
 import repository.settings.MinimumTextScale
 import repository.settings.TextScaleSliderSteps
 
+/** Renders the text-scale controls, status messages, and preview. */
 @Composable
 internal fun SettingsContentScreen(
     selectedScale: Float,
@@ -101,6 +102,7 @@ internal fun SettingsContentScreen(
     }
 }
 
+/** Renders the settings title and back action. */
 @Composable
 private fun SettingsHeader(onBack: () -> Unit) {
     Row(
@@ -122,6 +124,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
     }
 }
 
+/** Renders an error message using the theme error color. */
 @Composable
 private fun ErrorText(text: String) {
     Text(

@@ -19,6 +19,7 @@ import kotlin.test.assertTrue
 
 class CookAgentTest {
 
+    /** Verifies that executes one dictionary tool call and feeds the result back to the model. */
     @Test
     fun `executes one dictionary tool call and feeds the result back to the model`() = runBlocking {
         val executor = ToolCallingPromptExecutor()
@@ -53,6 +54,7 @@ class CookAgentTest {
 private class RecordingDictionaryClient : DictionaryClient {
     val lookups = mutableListOf<String>()
 
+    /** Verifies that lookup. */
     override suspend fun lookup(word: String): String {
         lookups += word
         return """{"status":"success","definition":"lasting for a very short time"}"""
@@ -63,6 +65,7 @@ private class ToolCallingPromptExecutor : PromptExecutor() {
     val prompts = mutableListOf<Prompt>()
     val toolsByRequest = mutableListOf<List<ToolDescriptor>>()
 
+    /** Verifies that execute streaming. */
     override fun executeStreaming(
         prompt: Prompt,
         model: LLModel,
@@ -83,14 +86,17 @@ private class ToolCallingPromptExecutor : PromptExecutor() {
         }
     }
 
+    /** Verifies that execute. */
     override suspend fun execute(
         prompt: Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>,
     ): Message.Assistant = error("Not used by this test")
 
+    /** Verifies that moderate. */
     override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult =
         error("Not used by this test")
 
+    /** Verifies that close. */
     override fun close() = Unit
 }

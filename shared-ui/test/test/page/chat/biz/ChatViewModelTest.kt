@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
 
 class ChatViewModelTest {
 
+    /** Verifies that shows the welcome message when cook starts normally. */
     @Test
     fun `shows the welcome message when Cook starts normally`() {
         val viewModel = ChatViewModel(
@@ -26,6 +27,7 @@ class ChatViewModelTest {
         )
     }
 
+    /** Verifies that shows the startup error instead of the welcome message. */
     @Test
     fun `shows the startup error instead of the welcome message`() {
         val startupError = "Set the GLM_API_KEY environment variable before starting Cook."
@@ -37,6 +39,7 @@ class ChatViewModelTest {
         assertEquals(startupError, viewModel.uiState.value.messages.single().text)
     }
 
+    /** Verifies that shows the unsupported platform message for non desktop implementations. */
     @Test
     fun `shows the unsupported platform message for non desktop implementations`() {
         val viewModel = ChatViewModel(
@@ -58,6 +61,7 @@ private class FakeCookRepo(
 ) : CookRepo {
     override val model = CookModel(id = "test", displayName = "Test model")
 
+    /** Verifies that send message. */
     override fun sendMessage(conversation: List<CookConversationMessage>): Flow<String> = emptyFlow()
 }
 

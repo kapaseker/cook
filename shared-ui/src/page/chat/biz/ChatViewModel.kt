@@ -39,12 +39,14 @@ class ChatViewModel(
 
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    /** Updates the draft and clears any displayed error. */
     fun onDraftChanged(value: String) {
         _uiState.update { state ->
             state.copy(draft = value, error = null)
         }
     }
 
+    /** Streams the assistant response for the supplied conversation. */
     fun sendMessage() {
         val currentState = _uiState.value
         val question = currentState.draft.trim()
@@ -158,6 +160,7 @@ class ChatViewModel(
         }
     }
 
+    /** Returns the next monotonically increasing message identifier. */
     private fun nextMessageId(): Long {
         nextId += 1
         return nextId

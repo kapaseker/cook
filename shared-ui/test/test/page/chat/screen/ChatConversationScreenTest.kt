@@ -7,6 +7,7 @@ import kotlin.test.assertNotEquals
 
 class ChatConversationScreenTest {
 
+    /** Verifies that scroll trigger changes when the latest message streams more text. */
     @Test
     fun `scroll trigger changes when the latest message streams more text`() {
         val pending = ChatMessage(

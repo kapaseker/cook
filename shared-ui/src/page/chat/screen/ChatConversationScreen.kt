@@ -25,6 +25,7 @@ import page.chat.biz.ChatMessage
 import page.chat.biz.ChatUiState
 import page.chat.biz.MessageAuthor
 
+/** Renders the chat header, message list, and composer. */
 @Composable
 internal fun ChatConversationScreen(
     state: ChatUiState,
@@ -55,6 +56,7 @@ internal fun ChatConversationScreen(
     }
 }
 
+/** Renders the chat title and settings action. */
 @Composable
 private fun ChatHeader(
     modelDisplayName: String,
@@ -90,6 +92,7 @@ private fun ChatHeader(
     }
 }
 
+/** Renders messages and scrolls when the latest message changes. */
 @Composable
 private fun MessageList(
     messages: List<ChatMessage>,
@@ -124,9 +127,11 @@ private fun MessageList(
     }
 }
 
+/** Returns a key that changes when the latest message changes. */
 internal fun latestMessageScrollKey(messages: List<ChatMessage>): Pair<Long, String>? =
     messages.lastOrNull()?.let { message -> message.id to message.text }
 
+/** Renders one chat message with author-specific styling. */
 @Composable
 private fun MessageBubble(message: ChatMessage) {
     val isUser = message.author == MessageAuthor.User
@@ -177,6 +182,7 @@ private fun MessageBubble(message: ChatMessage) {
     }
 }
 
+/** Renders the input field and send action. */
 @Composable
 private fun MessageComposer(
     draft: String,

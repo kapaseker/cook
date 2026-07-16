@@ -5,6 +5,7 @@ import page.settings.screen.SettingsContentScreen
 import page.settings.biz.SettingsUiState
 
 /** Navigation 3 destination for text-scale settings. */
+/** Renders the text-scale settings route. */
 @Composable
 internal fun SettingsPage(
     state: SettingsUiState,

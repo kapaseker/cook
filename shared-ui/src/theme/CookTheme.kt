@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import page.settings.biz.injectedFontScale
 
+/** Applies the Material theme with the selected text-scale density. */
 @Composable
 fun CookTheme(
     textScale: Float,

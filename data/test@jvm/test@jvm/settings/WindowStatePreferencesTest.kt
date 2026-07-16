@@ -22,6 +22,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class WindowStateStorageTest {
+    /** Verifies that window state can be saved and loaded. */
     @Test
     fun `window state can be saved and loaded`() = withPreferences { dataStore, preferences ->
         val expected = SavedWindowState(
@@ -44,6 +45,7 @@ class WindowStateStorageTest {
         assertNull(preferences.load())
     }
 
+    /** Verifies that invalid window dimensions are rejected. */
     @Test
     fun `invalid window dimensions are rejected`() = withPreferences { _, preferences ->
         assertFailsWith<IllegalArgumentException> {
@@ -59,6 +61,7 @@ class WindowStateStorageTest {
         }
     }
 
+    /** Verifies that with preferences. */
     private fun withPreferences(
         test: suspend (DataStore<Preferences>, WindowStateStorage) -> Unit,
     ) = runBlocking {
@@ -74,6 +77,7 @@ class WindowStateStorageTest {
         }
     }
 
+    /** Verifies that create data store. */
     private fun createDataStore(
         directory: File,
         scope: CoroutineScope,

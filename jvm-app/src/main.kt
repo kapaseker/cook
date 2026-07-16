@@ -12,6 +12,7 @@ import di.uiModule
 import org.koin.core.context.startKoin
 import org.koin.core.context.GlobalContext
 
+/** Starts dependency injection and the Compose Desktop application. */
 fun main() {
     configureUtf8ConsoleOutput()
     startKoin { modules(uiModule, platformDataModule) }
@@ -23,6 +24,7 @@ fun main() {
     }
 }
 
+/** Loads and clamps the initial window state for the current displays. */
 private fun loadInitialWindowState(store: WindowStateStore): SavedWindowState? {
     val savedState = runBlocking(Dispatchers.IO) {
         try {
@@ -37,6 +39,7 @@ private fun loadInitialWindowState(store: WindowStateStore): SavedWindowState? {
     return savedState.clampToVisibleScreen(workAreas, defaultWorkArea)
 }
 
+/** Configures standard output and error to use UTF-8. */
 private fun configureUtf8ConsoleOutput() {
     System.setOut(PrintStream(FileOutputStream(FileDescriptor.out), true, StandardCharsets.UTF_8))
     System.setErr(PrintStream(FileOutputStream(FileDescriptor.err), true, StandardCharsets.UTF_8))

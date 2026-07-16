@@ -10,6 +10,7 @@ import kotlin.test.assertNull
 
 class DictionaryClientTest {
 
+    /** Verifies that accepts a single english word and normalizes it. */
     @Test
     fun `accepts a single English word and normalizes it`() {
         assertEquals("mother-in-law", normalizeWord(" Mother-in-law "))
@@ -18,6 +19,7 @@ class DictionaryClientTest {
         assertNull(normalizeWord("中文"))
     }
 
+    /** Verifies that extracts one validated word from tool arguments. */
     @Test
     fun `extracts one validated word from tool arguments`() {
         assertEquals("ephemeral", parseToolWord("""{"word":"Ephemeral"}"""))
@@ -25,6 +27,7 @@ class DictionaryClientTest {
         assertNull(parseToolWord("not-json"))
     }
 
+    /** Verifies that normalizes dictionary response for the model. */
     @Test
     fun `normalizes dictionary response for the model`() {
         val output = parseDictionaryResponse(

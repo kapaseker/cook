@@ -21,6 +21,7 @@ data class ChatStrings(
     val unsupportedPlatform: String,
 )
 
+/** Loads localized strings used by the chat feature. */
 @Composable
 internal fun chatStrings() = ChatStrings(
     welcomeMessage = stringResource(Res.string.welcome_message),

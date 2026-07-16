@@ -18,6 +18,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class SettingsStorageTest {
+    /** Verifies that user override can be saved and removed. */
     @Test
     fun `user override can be saved and removed`() = runBlocking {
         val directory = Files.createTempDirectory("cook-settings-test").toFile()

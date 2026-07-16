@@ -16,12 +16,14 @@ internal class SettingsStorage(
             ?.let(::normalizeTextScale)
     }
 
+    /** Persists a normalized user-selected text scale. */
     override suspend fun setUserScale(scale: Float) {
         dataStore.edit { preferences ->
             preferences[UserTextScaleKey] = normalizeTextScale(scale)
         }
     }
 
+    /** Removes the persisted text-scale override. */
     override suspend fun clearUserScale() {
         dataStore.edit { preferences -> preferences.remove(UserTextScaleKey) }
     }

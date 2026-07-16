@@ -28,6 +28,7 @@ private const val DICTIONARY_ENDPOINT =
 private val ENGLISH_WORD = Regex("^[A-Za-z]+(?:['’-][A-Za-z]+)*$")
 
 interface DictionaryClient {
+    /** Looks up one normalized English word and returns a serialized result. */
     suspend fun lookup(word: String): String
 }
 
@@ -42,6 +43,7 @@ class DictionaryApiClient(
     },
 ) : DictionaryClient {
 
+    /** Looks up one normalized English word and returns a serialized result. */
     override suspend fun lookup(word: String): String {
         val normalizedWord = normalizeWord(word)
             ?: return toolError(
@@ -83,11 +85,13 @@ class DictionaryApiClient(
     }
 }
 
+/** Normalizes and validates a single English dictionary word. */
 internal fun normalizeWord(word: String): String? {
     val normalized = word.trim().replace('’', '\'').lowercase()
     return normalized.takeIf { it.matches(ENGLISH_WORD) }
 }
 
+/** Converts a dictionary API response into the tool result schema. */
 internal fun parseDictionaryResponse(requestedWord: String, body: String): String {
     return runCatching {
         val entries = Json.parseToJsonElement(body).jsonArray
@@ -111,6 +115,7 @@ internal fun parseDictionaryResponse(requestedWord: String, body: String): Strin
     }
 }
 
+/** Converts one dictionary entry into the supported result schema. */
 private fun normalizeEntry(entry: JsonObject): JsonObject = buildJsonObject {
     putIfPresent("word", entry.string("word"))
     putIfPresent("phonetic", entry.string("phonetic") ?: firstPhonetic(entry["phonetics"]))
@@ -137,21 +142,26 @@ private fun normalizeEntry(entry: JsonObject): JsonObject = buildJsonObject {
     })
 }
 
+/** Returns the first available phonetic transcription. */
 private fun firstPhonetic(element: JsonElement?): String? {
     return (element as? JsonArray)
         ?.firstNotNullOfOrNull { runCatching { it.jsonObject.string("text") }.getOrNull() }
 }
 
+/** Returns a nullable string property from this JSON object. */
 private fun JsonObject.string(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull
 
+/** Returns an array property or an empty array when it is absent. */
 private fun JsonObject.array(name: String): JsonArray =
     this[name] as? JsonArray ?: JsonArray(emptyList())
 
+/** Adds a nonblank string property to this JSON object builder. */
 private fun kotlinx.serialization.json.JsonObjectBuilder.putIfPresent(name: String, value: String?) {
     if (!value.isNullOrBlank()) put(name, value)
 }
 
+/** Adds a nonempty string array property to this JSON object builder. */
 private fun kotlinx.serialization.json.JsonObjectBuilder.putStringArray(
     name: String,
     values: JsonArray,
@@ -162,6 +172,7 @@ private fun kotlinx.serialization.json.JsonObjectBuilder.putStringArray(
     }
 }
 
+/** Creates a serialized dictionary-tool error result. */
 private fun toolError(status: String, word: String, message: String): String =
     buildJsonObject {
         put("status", status)

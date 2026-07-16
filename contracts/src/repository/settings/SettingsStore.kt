@@ -11,11 +11,14 @@ const val TextScaleSliderSteps = 34
 interface SettingsStore {
     val userScale: Flow<Float?>
 
+    /** Persists a normalized user-selected text scale. */
     suspend fun setUserScale(scale: Float)
 
+    /** Removes the persisted text-scale override. */
     suspend fun clearUserScale()
 }
 
+/** Rounds and bounds a text scale to the supported range. */
 fun normalizeTextScale(value: Float): Float {
     if (!value.isFinite()) return MinimumTextScale
 

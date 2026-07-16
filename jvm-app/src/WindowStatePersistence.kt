@@ -30,6 +30,7 @@ import kotlin.math.roundToInt
 
 private const val WindowSaveDebounceMillis = 500L
 
+/** Renders the desktop window and coordinates persisted window state. */
 @Composable
 internal fun ApplicationScope.CookWindow(
     initialState: SavedWindowState?,
@@ -84,6 +85,7 @@ internal class WindowStateAccumulator(initialState: SavedWindowState?) {
     private var lastObservedState = initialState
     private var hasStableInitialState = false
 
+    /** Records an observation and returns a state when it should be persisted. */
     fun observe(observation: WindowObservation): SavedWindowState? {
         if (observation.isMinimized) return null
 
@@ -114,6 +116,7 @@ private class WindowStateSaveCoordinator(
     private var pendingState: SavedWindowState? = null
     private var debounceJob: Job? = null
 
+    /** Queues a window state for debounced persistence. */
     fun submit(state: SavedWindowState) {
         pendingState = state
         debounceJob?.cancel()
@@ -123,12 +126,14 @@ private class WindowStateSaveCoordinator(
         }
     }
 
+    /** Persists any queued window state immediately. */
     suspend fun flush() {
         debounceJob?.cancelAndJoin()
         debounceJob = null
         persistPendingState()
     }
 
+    /** Writes the queued state and clears it after a successful save. */
     private suspend fun persistPendingState() {
         val state = pendingState ?: return
         try {
@@ -153,6 +158,7 @@ private class WindowCloseCoordinator(
 ) {
     private var isClosing = false
 
+    /** Flushes pending state once while the application window closes. */
     fun close() {
         if (isClosing) return
         isClosing = true
@@ -163,6 +169,7 @@ private class WindowCloseCoordinator(
     }
 }
 
+/** Converts this Compose window state into a persistence observation. */
 private fun WindowState.toObservation(): WindowObservation {
     val x = position.x.value
     val y = position.y.value

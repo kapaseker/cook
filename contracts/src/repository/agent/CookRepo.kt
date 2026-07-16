@@ -11,6 +11,7 @@ interface CookRepo {
     val startupIssue: CookStartupIssue?
     val model: CookModel
 
+    /** Streams the assistant response for the supplied conversation. */
     fun sendMessage(conversation: List<CookConversationMessage>): Flow<String>
 }
 

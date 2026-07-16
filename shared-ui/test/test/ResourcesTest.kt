@@ -22,6 +22,7 @@ import kotlin.test.assertEquals
 
 class ResourcesTest {
 
+    /** Verifies that default english strings preserve the existing copy. */
     @Test
     fun `default English strings preserve the existing copy`() = runBlocking {
         assertEquals("Cook", getString(Res.string.app_name))

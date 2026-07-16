@@ -5,6 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class WindowStatePersistenceTest {
+    /** Verifies that initial floating state establishes a baseline without saving. */
     @Test
     fun `initial floating state establishes a baseline without saving`() {
         val accumulator = WindowStateAccumulator(initialState = null)
@@ -13,6 +14,7 @@ class WindowStatePersistenceTest {
         assertNull(accumulator.observe(observation(bounds = bounds())))
     }
 
+    /** Verifies that changed floating bounds are emitted after the baseline. */
     @Test
     fun `changed floating bounds are emitted after the baseline`() {
         val accumulator = WindowStateAccumulator(initialState = null)
@@ -22,6 +24,7 @@ class WindowStatePersistenceTest {
         assertEquals(moved, accumulator.observe(observation(bounds = moved)))
     }
 
+    /** Verifies that maximizing preserves the last floating bounds. */
     @Test
     fun `maximizing preserves the last floating bounds`() {
         val floating = bounds(x = 80, y = 60, width = 1200, height = 800)
@@ -39,6 +42,7 @@ class WindowStatePersistenceTest {
         )
     }
 
+    /** Verifies that minimized observations do not change persisted state. */
     @Test
     fun `minimized observations do not change persisted state`() {
         val floating = bounds()
@@ -57,6 +61,7 @@ class WindowStatePersistenceTest {
         assertNull(accumulator.observe(observation(bounds = floating)))
     }
 
+    /** Verifies that fullscreen is reduced to the last floating state. */
     @Test
     fun `fullscreen is reduced to the last floating state`() {
         val maximized = bounds(isMaximized = true)
@@ -79,6 +84,7 @@ class WindowStatePersistenceTest {
         )
     }
 
+    /** Verifies that observation. */
     private fun observation(
         placement: WindowPlacement = WindowPlacement.Floating,
         isMinimized: Boolean = false,
@@ -89,6 +95,7 @@ class WindowStatePersistenceTest {
         bounds = bounds,
     )
 
+    /** Verifies that bounds. */
     private fun bounds(
         x: Int = 100,
         y: Int = 100,

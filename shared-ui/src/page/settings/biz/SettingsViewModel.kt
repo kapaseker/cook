@@ -44,12 +44,14 @@ internal class SettingsViewModel(
         }
     }
 
+    /** Updates the in-memory text-scale preview. */
     fun previewScale(scale: Float) {
         _uiState.update { state ->
             state.copy(userScale = normalizeTextScale(scale), saveFailed = false)
         }
     }
 
+    /** Persists the currently previewed text scale. */
     fun savePreviewedScale() {
         val scale = _uiState.value.userScale ?: return
         viewModelScope.launch {
@@ -60,6 +62,7 @@ internal class SettingsViewModel(
         }
     }
 
+    /** Clears the override and restores the device text scale. */
     fun resetToDeviceDefault() {
         _uiState.update { state ->
             state.copy(userScale = null, saveFailed = false)

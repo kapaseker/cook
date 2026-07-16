@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
 
+/** Renders a medium-sized icon button. */
 @Composable
 fun MediumIconButton(
     onClick: () -> Unit,

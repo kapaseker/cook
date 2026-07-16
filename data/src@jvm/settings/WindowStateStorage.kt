@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 internal class WindowStateStorage(
     private val dataStore: DataStore<Preferences>,
 ) : WindowStateStore {
+    /** Loads the last persisted window state when one is available. */
     override suspend fun load(): SavedWindowState? {
         val preferences = dataStore.data.first()
         val x = preferences[WindowXKey] ?: return null
@@ -22,6 +23,7 @@ internal class WindowStateStorage(
             .takeIf(SavedWindowState::hasValidBounds)
     }
 
+    /** Persists a window state with valid bounds. */
     override suspend fun save(state: SavedWindowState) {
         require(state.hasValidBounds()) { "Window dimensions must be positive" }
         dataStore.edit { preferences ->

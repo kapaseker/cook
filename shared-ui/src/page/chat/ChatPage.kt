@@ -9,6 +9,7 @@ import page.chat.biz.ChatViewModel
 import page.chat.screen.ChatConversationScreen
 
 /** Navigation 3 destination for the chat feature. */
+/** Renders the chat route and connects it to its view model. */
 @Composable
 internal fun ChatPage(onOpenSettings: () -> Unit) {
     val strings = chatStrings()

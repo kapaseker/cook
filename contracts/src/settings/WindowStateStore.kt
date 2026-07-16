@@ -9,9 +9,12 @@ data class SavedWindowState(
 )
 
 interface WindowStateStore {
+    /** Loads the last persisted window state when one is available. */
     suspend fun load(): SavedWindowState?
 
+    /** Persists a window state with valid bounds. */
     suspend fun save(state: SavedWindowState)
 }
 
+/** Returns whether this state has positive width and height. */
 fun SavedWindowState.hasValidBounds(): Boolean = width > 0 && height > 0

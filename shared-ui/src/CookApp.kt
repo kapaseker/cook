@@ -38,6 +38,7 @@ private val navigationStateConfiguration = SavedStateConfiguration {
     }
 }
 
+/** Renders the root application navigation and theme. */
 @Composable
 @Preview
 fun CookApp() {
@@ -100,6 +101,7 @@ fun CookApp() {
     }
 }
 
+/** Renders the initial loading state. */
 @Composable
 private fun LoadingScreen() {
     Box(
