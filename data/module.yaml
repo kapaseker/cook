@@ -1,0 +1,22 @@
+product:
+  type: kmp/lib
+  platforms: [jvm]
+
+dependencies:
+  - ../contracts
+  - androidx.datastore:datastore:1.2.1
+  - androidx.datastore:datastore-core-okio:1.2.1
+  - androidx.datastore:datastore-preferences:1.2.1
+  - io.insert-koin:koin-core:4.2.2
+
+dependencies@jvm:
+  - org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2
+  - ai.koog:koog-agents:1.0.0
+  - ai.koog:http-client-ktor:1.0.0
+  - io.ktor:ktor-client-core:3.3.3
+  - io.ktor:ktor-client-cio:3.3.3
+  - org.slf4j:slf4j-simple:2.0.17
+
+settings:
+  kotlin:
+    serialization: json

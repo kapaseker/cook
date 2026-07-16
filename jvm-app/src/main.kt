@@ -6,23 +6,27 @@ import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import settings.SavedWindowState
-import settings.WindowStatePreferences
-import settings.windowStatePreferences
+import settings.WindowStateStore
+import di.platformDataModule
+import di.uiModule
+import org.koin.core.context.startKoin
+import org.koin.core.context.GlobalContext
 
 fun main() {
     configureUtf8ConsoleOutput()
-    val preferences = windowStatePreferences()
-    val initialWindowState = loadInitialWindowState(preferences)
+    startKoin { modules(uiModule, platformDataModule) }
+    val windowStateStore = GlobalContext.get().get<WindowStateStore>()
+    val initialWindowState = loadInitialWindowState(windowStateStore)
 
     application {
-        CookWindow(initialWindowState, preferences)
+        CookWindow(initialWindowState, windowStateStore)
     }
 }
 
-private fun loadInitialWindowState(preferences: WindowStatePreferences): SavedWindowState? {
+private fun loadInitialWindowState(store: WindowStateStore): SavedWindowState? {
     val savedState = runBlocking(Dispatchers.IO) {
         try {
-            preferences.load()
+            store.load()
         } catch (error: Exception) {
             System.err.println("Unable to load window state: ${error.message}")
             null

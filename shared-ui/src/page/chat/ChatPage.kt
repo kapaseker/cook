@@ -1,0 +1,24 @@
+package page.chat
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
+import page.chat.biz.ChatViewModel
+import page.chat.screen.ChatConversationScreen
+
+/** Navigation 3 destination for the chat feature. */
+@Composable
+internal fun ChatPage(onOpenSettings: () -> Unit) {
+    val strings = chatStrings()
+    val viewModel = koinViewModel<ChatViewModel> { parametersOf(strings) }
+    val state by viewModel.uiState.collectAsState()
+
+    ChatConversationScreen(
+        state = state,
+        onDraftChanged = viewModel::onDraftChanged,
+        onSend = viewModel::sendMessage,
+        onOpenSettings = onOpenSettings,
+    )
+}

@@ -1,0 +1,25 @@
+product:
+  type: kmp/lib
+  platforms: [jvm]
+
+dependencies:
+  - ../contracts
+  - $compose.foundation: exported
+  - $compose.material3: exported
+  - $compose.preview
+  - org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0
+  - org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3:2.10.0
+  - org.jetbrains.androidx.navigation3:navigation3-ui:1.1.1
+  - io.insert-koin:koin-core:4.2.2
+  - io.insert-koin:koin-compose:4.2.2
+  - io.insert-koin:koin-core-viewmodel:4.2.2
+  - io.insert-koin:koin-compose-viewmodel:4.2.2
+
+settings:
+  compose:
+    enabled: true
+    resources:
+      exposedAccessors: true
+      packageName: cook.generated.resources
+  kotlin:
+    serialization: json

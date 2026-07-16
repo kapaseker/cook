@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import settings.SavedWindowState
-import settings.WindowStatePreferences
+import settings.WindowStateStore
 import theme.CookDimensions
 import kotlin.math.roundToInt
 
@@ -33,7 +33,7 @@ private const val WindowSaveDebounceMillis = 500L
 @Composable
 internal fun ApplicationScope.CookWindow(
     initialState: SavedWindowState?,
-    preferences: WindowStatePreferences,
+    store: WindowStateStore,
 ) {
     val windowState = rememberWindowState(
         placement = if (initialState?.isMaximized == true) {
@@ -49,8 +49,8 @@ internal fun ApplicationScope.CookWindow(
     )
     val coroutineScope = rememberCoroutineScope()
     val accumulator = remember(initialState) { WindowStateAccumulator(initialState) }
-    val saveCoordinator = remember(preferences, coroutineScope) {
-        WindowStateSaveCoordinator(preferences, coroutineScope)
+    val saveCoordinator = remember(store, coroutineScope) {
+        WindowStateSaveCoordinator(store, coroutineScope)
     }
     val closeCoordinator = remember(saveCoordinator, coroutineScope) {
         WindowCloseCoordinator(coroutineScope, saveCoordinator, ::exitApplication)
@@ -108,7 +108,7 @@ internal class WindowStateAccumulator(initialState: SavedWindowState?) {
 }
 
 private class WindowStateSaveCoordinator(
-    private val preferences: WindowStatePreferences,
+    private val store: WindowStateStore,
     private val coroutineScope: CoroutineScope,
 ) {
     private var pendingState: SavedWindowState? = null
@@ -133,7 +133,7 @@ private class WindowStateSaveCoordinator(
         val state = pendingState ?: return
         try {
             withContext(Dispatchers.IO) {
-                preferences.save(state)
+                store.save(state)
             }
             if (pendingState == state) {
                 pendingState = null

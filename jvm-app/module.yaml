@@ -1,7 +1,10 @@
 product: jvm/app
 
 dependencies:
-  - ../shared
+  - ../contracts
+  - ../shared-ui
+  - ../data
+  - io.insert-koin:koin-core:4.2.2
   - $compose.desktop.currentOs
   - $compose.components.resources
 
