@@ -12,10 +12,18 @@ data class ChatMessage(
     val isPending: Boolean = false,
 )
 
-data class ChatUiState(
+/** State rendered by the chat header and conversation list. */
+data class ChatConversationUiState(
     val messages: List<ChatMessage> = emptyList(),
+)
+
+/** State rendered by the message composer input. */
+data class ChatDraftUiState(
     val draft: String = "",
+)
+
+/** State for the lifecycle of an agent request. */
+data class ChatRequestUiState(
     val isSending: Boolean = false,
-    val error: String? = null,
-    val modelDisplayName: String,
+    val errorMessage: String = "",
 )

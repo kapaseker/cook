@@ -22,13 +22,17 @@ import theme.CookOpacity
 import theme.CookShapes
 import widget.MediumIconButton
 import page.chat.biz.ChatMessage
-import page.chat.biz.ChatUiState
+import page.chat.biz.ChatConversationUiState
+import page.chat.biz.ChatDraftUiState
+import page.chat.biz.ChatRequestUiState
 import page.chat.biz.MessageAuthor
 
 /** Renders the chat header, message list, and composer. */
 @Composable
 internal fun ChatConversationScreen(
-    state: ChatUiState,
+    conversationState: ChatConversationUiState,
+    draftState: ChatDraftUiState,
+    requestState: ChatRequestUiState,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -37,19 +41,18 @@ internal fun ChatConversationScreen(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
     ) {
         ChatHeader(
-            modelDisplayName = state.modelDisplayName,
             onOpenSettings = onOpenSettings,
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageList(
-            messages = state.messages,
+            messages = conversationState.messages,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageComposer(
-            draft = state.draft,
-            isSending = state.isSending,
-            error = state.error,
+            draft = draftState.draft,
+            isSending = requestState.isSending,
+            errorMessage = requestState.errorMessage,
             onDraftChanged = onDraftChanged,
             onSend = onSend,
         )
@@ -59,7 +62,6 @@ internal fun ChatConversationScreen(
 /** Renders the chat title and settings action. */
 @Composable
 private fun ChatHeader(
-    modelDisplayName: String,
     onOpenSettings: () -> Unit,
 ) {
     Row(
@@ -79,7 +81,7 @@ private fun ChatHeader(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = modelDisplayName,
+                text = stringResource(Res.string.model_name),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -187,7 +189,7 @@ private fun MessageBubble(message: ChatMessage) {
 private fun MessageComposer(
     draft: String,
     isSending: Boolean,
-    error: String?,
+    errorMessage: String,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
@@ -197,9 +199,9 @@ private fun MessageComposer(
         modifier = Modifier.fillMaxWidth().padding(CookDimensions.composerPadding),
         verticalArrangement = Arrangement.spacedBy(CookDimensions.composerSpacing),
     ) {
-        if (error != null) {
+        if (errorMessage.isNotEmpty()) {
             Text(
-                text = error,
+                text = errorMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )

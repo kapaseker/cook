@@ -23,7 +23,7 @@ class ChatViewModelTest {
         assertEquals(
             "\nHi, I'm Cook. 👋\n\n" +
                 "Talk to me in English or Chinese, and I'll help you improve your English along the way.\n",
-            viewModel.uiState.value.messages.single().text,
+            viewModel.conversationUiState.value.messages.single().text,
         )
     }
 
@@ -36,7 +36,7 @@ class ChatViewModelTest {
             strings = testChatStrings,
         )
 
-        assertEquals(startupError, viewModel.uiState.value.messages.single().text)
+        assertEquals(startupError, viewModel.conversationUiState.value.messages.single().text)
     }
 
     /** Verifies that shows the unsupported platform message for non desktop implementations. */
@@ -51,8 +51,26 @@ class ChatViewModelTest {
 
         assertEquals(
             "Cook's AI agent is currently available on Desktop only.",
-            viewModel.uiState.value.messages.single().text,
+            viewModel.conversationUiState.value.messages.single().text,
         )
+    }
+
+    /** Verifies that drafting updates only draft state. */
+    @Test
+    fun `draft updates input state without changing conversation or request`() {
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(),
+            strings = testChatStrings,
+        )
+        val originalConversation = viewModel.conversationUiState.value
+        val originalRequest = viewModel.requestUiState.value
+
+        viewModel.onDraftChanged("Hello")
+
+        assertEquals("Hello", viewModel.draftUiState.value.draft)
+        assertEquals(originalConversation, viewModel.conversationUiState.value)
+        assertEquals(originalRequest, viewModel.requestUiState.value)
+        assertEquals("", viewModel.requestUiState.value.errorMessage)
     }
 }
 

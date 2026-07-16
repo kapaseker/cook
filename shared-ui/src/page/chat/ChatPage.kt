@@ -14,10 +14,14 @@ import page.chat.screen.ChatConversationScreen
 internal fun ChatPage(onOpenSettings: () -> Unit) {
     val strings = chatStrings()
     val viewModel = koinViewModel<ChatViewModel> { parametersOf(strings) }
-    val state by viewModel.uiState.collectAsState()
+    val conversationState by viewModel.conversationUiState.collectAsState()
+    val draftState by viewModel.draftUiState.collectAsState()
+    val requestState by viewModel.requestUiState.collectAsState()
 
     ChatConversationScreen(
-        state = state,
+        conversationState = conversationState,
+        draftState = draftState,
+        requestState = requestState,
         onDraftChanged = viewModel::onDraftChanged,
         onSend = viewModel::sendMessage,
         onOpenSettings = onOpenSettings,

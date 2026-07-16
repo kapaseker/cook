@@ -24,8 +24,8 @@ class ChatViewModel(
         null -> strings.welcomeMessage
     }
 
-    private val _uiState = MutableStateFlow(
-        ChatUiState(
+    private val _conversationUiState = MutableStateFlow(
+        ChatConversationUiState(
             messages = listOf(
                 ChatMessage(
                     id = nextMessageId(),
@@ -33,28 +33,34 @@ class ChatViewModel(
                     text = initialMessage,
                 )
             ),
-            modelDisplayName = cookRepository.model.displayName,
         )
     )
 
-    val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+    val conversationUiState: StateFlow<ChatConversationUiState> =
+        _conversationUiState.asStateFlow()
+
+    private val _draftUiState = MutableStateFlow(ChatDraftUiState())
+
+    val draftUiState: StateFlow<ChatDraftUiState> = _draftUiState.asStateFlow()
+
+    private val _requestUiState = MutableStateFlow(ChatRequestUiState())
+
+    val requestUiState: StateFlow<ChatRequestUiState> = _requestUiState.asStateFlow()
 
     /** Updates the draft and clears any displayed error. */
     fun onDraftChanged(value: String) {
-        _uiState.update { state ->
-            state.copy(draft = value, error = null)
-        }
+        _draftUiState.update { state -> state.copy(draft = value) }
+        _requestUiState.update { state -> state.copy(errorMessage = "") }
     }
 
     /** Streams the assistant response for the supplied conversation. */
     fun sendMessage() {
-        val currentState = _uiState.value
-        val question = currentState.draft.trim()
-        if (question.isEmpty() || currentState.isSending) {
+        val question = _draftUiState.value.draft.trim()
+        if (question.isEmpty() || _requestUiState.value.isSending) {
             return
         }
 
-        val conversation = currentState.messages.mapNotNull { message ->
+        val conversation = _conversationUiState.value.messages.mapNotNull { message ->
             if (message.isPending || message.text.isBlank()) {
                 null
             } else {
@@ -72,7 +78,7 @@ class ChatViewModel(
         )
 
         val pendingMessageId = nextMessageId()
-        _uiState.update { state ->
+        _conversationUiState.update { state ->
             state.copy(
                 messages = state.messages + ChatMessage(
                     id = nextMessageId(),
@@ -84,11 +90,10 @@ class ChatViewModel(
                     text = strings.thinking,
                     isPending = true,
                 ),
-                draft = "",
-                isSending = true,
-                error = null,
             )
         }
+        _draftUiState.update { state -> state.copy(draft = "") }
+        _requestUiState.update { state -> state.copy(isSending = true, errorMessage = "") }
 
         viewModelScope.launch(Dispatchers.Default) {
             val result = runCatching {
@@ -96,7 +101,7 @@ class ChatViewModel(
                 val collected = StringBuilder()
                 cookRepository.sendMessage(conversation).collect { chunk ->
                     collected.append(chunk)
-                    _uiState.update { state ->
+                    _conversationUiState.update { state ->
                         state.copy(
                             messages = state.messages.map { message ->
                                 if (message.id == pendingMessageId) {
@@ -111,51 +116,42 @@ class ChatViewModel(
                 collected.toString()
             }
 
-            _uiState.update { state ->
-                when {
-                    result.isSuccess -> {
-                        val answer = result.getOrThrow()
-                        state.copy(
-                            messages = state.messages.map { message ->
-                                if (message.id == pendingMessageId) {
-                                    message.copy(
-                                        text = answer.ifBlank { strings.emptyResponse },
-                                        isPending = false,
-                                    )
-                                } else {
-                                    message
-                                }
-                            },
-                            isSending = false,
-                            error = null,
-                        )
-                    }
-
-                    else -> {
-                        val throwable = result.exceptionOrNull()
-                        val errorText = when (throwable) {
-                            is CookStartupException -> when (throwable.issue) {
-                                CookStartupIssue.MissingApiKey -> strings.missingApiKey
-                                CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
+            val requestErrorMessage = result.exceptionOrNull()?.let(::errorMessage).orEmpty()
+            _conversationUiState.update { state ->
+                if (result.isSuccess) {
+                    val answer = result.getOrThrow()
+                    state.copy(
+                        messages = state.messages.map { message ->
+                            if (message.id == pendingMessageId) {
+                                message.copy(
+                                    text = answer.ifBlank { strings.emptyResponse },
+                                    isPending = false,
+                                )
+                            } else {
+                                message
                             }
-                            else -> throwable?.message ?: strings.agentRequestFailed
-                        }
-                        state.copy(
-                            messages = state.messages.map { message ->
-                                if (message.id == pendingMessageId) {
-                                    message.copy(
-                                        text = "${strings.couldNotAnswer} $errorText",
-                                        isPending = false,
-                                    )
-                                } else {
-                                    message
-                                }
-                            },
-                            isSending = false,
-                            error = errorText,
-                        )
-                    }
+                        },
+                    )
+                } else {
+                    state.copy(
+                        messages = state.messages.map { message ->
+                            if (message.id == pendingMessageId) {
+                                message.copy(
+                                    text = "${strings.couldNotAnswer} $requestErrorMessage",
+                                    isPending = false,
+                                )
+                            } else {
+                                message
+                            }
+                        },
+                    )
                 }
+            }
+            _requestUiState.update {
+                ChatRequestUiState(
+                    isSending = false,
+                    errorMessage = requestErrorMessage,
+                )
             }
         }
     }
@@ -164,5 +160,13 @@ class ChatViewModel(
     private fun nextMessageId(): Long {
         nextId += 1
         return nextId
+    }
+
+    private fun errorMessage(throwable: Throwable): String = when (throwable) {
+        is CookStartupException -> when (throwable.issue) {
+            CookStartupIssue.MissingApiKey -> strings.missingApiKey
+            CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
+        }
+        else -> throwable.message ?: strings.agentRequestFailed
     }
 }

@@ -7,6 +7,7 @@ import cook.generated.resources.could_not_answer
 import cook.generated.resources.empty_response
 import cook.generated.resources.message_placeholder
 import cook.generated.resources.missing_api_key
+import cook.generated.resources.model_name
 import cook.generated.resources.send
 import cook.generated.resources.sending
 import cook.generated.resources.settings
@@ -26,6 +27,7 @@ class ResourcesTest {
     @Test
     fun `default English strings preserve the existing copy`() = runBlocking {
         assertEquals("Cook", getString(Res.string.app_name))
+        assertEquals("GLM-4.7 Flash", getString(Res.string.model_name))
         assertEquals("You", getString(Res.string.user_label))
         assertEquals("Message Cook", getString(Res.string.message_placeholder))
         assertEquals("Sending", getString(Res.string.sending))
