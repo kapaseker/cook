@@ -25,6 +25,7 @@ import page.chat.biz.ChatMessage
 import page.chat.biz.ChatConversationUiState
 import page.chat.biz.ChatDraftUiState
 import page.chat.biz.ChatRequestUiState
+import page.chat.biz.ChatHistoryUiState
 import page.chat.biz.MessageAuthor
 import page.chat.markdown.AgentMarkdownText
 
@@ -34,35 +35,62 @@ internal fun ChatConversationScreen(
     conversationState: ChatConversationUiState,
     draftState: ChatDraftUiState,
     requestState: ChatRequestUiState,
+    historyState: ChatHistoryUiState,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
+    onRequestClearHistory: () -> Unit,
+    onDismissClearHistoryConfirmation: () -> Unit,
+    onConfirmClearHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
     ) {
         ChatHeader(
+            canClearHistory = historyState.isLoaded &&
+                !historyState.isClearing &&
+                !requestState.isSending &&
+                conversationState.messages.any { it.author == MessageAuthor.User },
+            onClearHistory = onRequestClearHistory,
             onOpenSettings = onOpenSettings,
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        MessageList(
-            messages = conversationState.messages,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-        )
+        if (historyState.isLoaded) {
+            MessageList(
+                messages = conversationState.messages,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
+        } else {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+        }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageComposer(
             draft = draftState.draft,
-            isSending = requestState.isSending,
-            errorMessage = requestState.errorMessage,
+            isSending = requestState.isSending || !historyState.isLoaded || historyState.isClearing,
+            requestErrorMessage = requestState.errorMessage,
+            historyErrorMessage = historyState.errorMessage,
             onDraftChanged = onDraftChanged,
             onSend = onSend,
         )
+        if (historyState.isClearConfirmationVisible) {
+            ClearHistoryConfirmation(
+                onDismiss = onDismissClearHistoryConfirmation,
+                onConfirm = onConfirmClearHistory,
+            )
+        }
     }
 }
 
 /** Renders the chat title and settings action. */
 @Composable
 private fun ChatHeader(
+    canClearHistory: Boolean,
+    onClearHistory: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
     Row(
@@ -87,11 +115,22 @@ private fun ChatHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        MediumIconButton(
-            onClick = onOpenSettings,
-            painter = painterResource(Res.drawable.ic_settings),
-            contentDescription = stringResource(Res.string.settings),
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(CookDimensions.buttonSpacing),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MediumIconButton(
+                onClick = onClearHistory,
+                enabled = canClearHistory,
+                painter = painterResource(Res.drawable.ic_clear),
+                contentDescription = stringResource(Res.string.clear_history),
+            )
+            MediumIconButton(
+                onClick = onOpenSettings,
+                painter = painterResource(Res.drawable.ic_settings),
+                contentDescription = stringResource(Res.string.settings),
+            )
+        }
     }
 }
 
@@ -154,7 +193,7 @@ private fun MessageBubble(message: ChatMessage) {
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         Column(
-            modifier = Modifier.widthIn(max = CookDimensions.messageMaxWidth),
+            modifier = Modifier.fillMaxWidth(0.8f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(CookDimensions.messageLabelSpacing),
         ) {
@@ -198,7 +237,8 @@ private fun MessageBubble(message: ChatMessage) {
 private fun MessageComposer(
     draft: String,
     isSending: Boolean,
-    errorMessage: String,
+    requestErrorMessage: String,
+    historyErrorMessage: String,
     onDraftChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
@@ -208,9 +248,16 @@ private fun MessageComposer(
         modifier = Modifier.fillMaxWidth().padding(CookDimensions.composerPadding),
         verticalArrangement = Arrangement.spacedBy(CookDimensions.composerSpacing),
     ) {
-        if (errorMessage.isNotEmpty()) {
+        if (requestErrorMessage.isNotEmpty()) {
             Text(
-                text = errorMessage,
+                text = requestErrorMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        if (historyErrorMessage.isNotEmpty()) {
+            Text(
+                text = historyErrorMessage,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -248,4 +295,27 @@ private fun MessageComposer(
             }
         }
     }
+}
+
+/** Confirms permanent deletion of the persisted conversation. */
+@Composable
+private fun ClearHistoryConfirmation(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.clear_history_title)) },
+        text = { Text(stringResource(Res.string.clear_history_message)) },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.cancel))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(Res.string.clear))
+            }
+        },
+    )
 }

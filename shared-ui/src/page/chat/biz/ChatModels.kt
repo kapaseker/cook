@@ -27,3 +27,11 @@ data class ChatRequestUiState(
     val isSending: Boolean = false,
     val errorMessage: String = "",
 )
+
+/** State for loading, saving, and clearing the persisted conversation. */
+data class ChatHistoryUiState(
+    val isLoaded: Boolean = false,
+    val isClearing: Boolean = false,
+    val errorMessage: String = "",
+    val isClearConfirmationVisible: Boolean = false,
+)

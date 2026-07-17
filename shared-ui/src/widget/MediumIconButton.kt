@@ -16,9 +16,10 @@ fun MediumIconButton(
     onClick: () -> Unit,
     painter: Painter,
     contentDescription: String,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    IconButton(onClick = onClick, modifier = modifier.size(52.dp)) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(52.dp)) {
         Icon(
             painter = painter,
             contentDescription = contentDescription,

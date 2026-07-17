@@ -6,6 +6,9 @@ import cook.generated.resources.agent_request_failed
 import cook.generated.resources.could_not_answer
 import cook.generated.resources.empty_response
 import cook.generated.resources.missing_api_key
+import cook.generated.resources.history_clear_failed
+import cook.generated.resources.history_load_failed
+import cook.generated.resources.history_save_failed
 import cook.generated.resources.thinking
 import cook.generated.resources.unsupported_platform
 import cook.generated.resources.welcome_message
@@ -19,6 +22,9 @@ data class ChatStrings(
     val couldNotAnswer: String,
     val missingApiKey: String,
     val unsupportedPlatform: String,
+    val historyLoadFailed: String,
+    val historySaveFailed: String,
+    val historyClearFailed: String,
 )
 
 /** Loads localized strings used by the chat feature. */
@@ -31,4 +37,7 @@ internal fun chatStrings() = ChatStrings(
     couldNotAnswer = stringResource(Res.string.could_not_answer),
     missingApiKey = stringResource(Res.string.missing_api_key),
     unsupportedPlatform = stringResource(Res.string.unsupported_platform),
+    historyLoadFailed = stringResource(Res.string.history_load_failed),
+    historySaveFailed = stringResource(Res.string.history_save_failed),
+    historyClearFailed = stringResource(Res.string.history_clear_failed),
 )

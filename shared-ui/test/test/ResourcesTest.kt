@@ -6,6 +6,9 @@ import cook.generated.resources.app_name
 import cook.generated.resources.could_not_answer
 import cook.generated.resources.empty_response
 import cook.generated.resources.message_placeholder
+import cook.generated.resources.history_clear_failed
+import cook.generated.resources.history_load_failed
+import cook.generated.resources.history_save_failed
 import cook.generated.resources.missing_api_key
 import cook.generated.resources.model_name
 import cook.generated.resources.send
@@ -30,6 +33,9 @@ class ResourcesTest {
         assertEquals("GLM-4.7 Flash", getString(Res.string.model_name))
         assertEquals("You", getString(Res.string.user_label))
         assertEquals("Message Cook", getString(Res.string.message_placeholder))
+        assertEquals("Couldn't load conversation history.", getString(Res.string.history_load_failed))
+        assertEquals("Couldn't save conversation history.", getString(Res.string.history_save_failed))
+        assertEquals("Couldn't clear conversation history.", getString(Res.string.history_clear_failed))
         assertEquals("Sending", getString(Res.string.sending))
         assertEquals("Send", getString(Res.string.send))
         assertEquals("Settings", getString(Res.string.settings))

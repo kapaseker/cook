@@ -17,13 +17,18 @@ internal fun ChatPage(onOpenSettings: () -> Unit) {
     val conversationState by viewModel.conversationUiState.collectAsState()
     val draftState by viewModel.draftUiState.collectAsState()
     val requestState by viewModel.requestUiState.collectAsState()
+    val historyState by viewModel.historyUiState.collectAsState()
 
     ChatConversationScreen(
         conversationState = conversationState,
         draftState = draftState,
         requestState = requestState,
+        historyState = historyState,
         onDraftChanged = viewModel::onDraftChanged,
         onSend = viewModel::sendMessage,
+        onRequestClearHistory = viewModel::requestClearHistory,
+        onDismissClearHistoryConfirmation = viewModel::dismissClearHistoryConfirmation,
+        onConfirmClearHistory = viewModel::confirmClearHistory,
         onOpenSettings = onOpenSettings,
     )
 }

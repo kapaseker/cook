@@ -4,6 +4,8 @@ product:
 
 dependencies:
   - ../contracts
+  - androidx.room:room-runtime:2.8.4
+  - androidx.sqlite:sqlite-bundled:2.7.0
   - androidx.datastore:datastore:1.2.1
   - androidx.datastore:datastore-core-okio:1.2.1
   - androidx.datastore:datastore-preferences:1.2.1
@@ -20,3 +22,8 @@ dependencies@jvm:
 settings:
   kotlin:
     serialization: json
+    ksp:
+      processors:
+        - androidx.room:room-compiler:2.8.4
+      processorOptions:
+        room.schemaLocation: schemas

@@ -7,6 +7,6 @@ import page.chat.biz.ChatViewModel
 import page.settings.biz.SettingsViewModel
 
 val uiModule = module {
-    viewModel { parameters -> ChatViewModel(get(), parameters.get<ChatStrings>()) }
+    viewModel { parameters -> ChatViewModel(get(), get(), parameters.get<ChatStrings>()) }
     viewModel { SettingsViewModel(get()) }
 }

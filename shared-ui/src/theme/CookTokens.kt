@@ -11,7 +11,6 @@ object CookDimensions {
     val headerTextSpacing = 4.dp
     val messageSpacing = 12.dp
     val listEndAnchorHeight = 1.dp
-    val messageMaxWidth = 560.dp
     val messageLabelSpacing = 4.dp
     val messageBubbleCornerRadius = 8.dp
     val messageBubbleHorizontalPadding = 14.dp
@@ -20,6 +19,7 @@ object CookDimensions {
     val composerSpacing = 8.dp
     val composerRowSpacing = 12.dp
     val sendButtonHeight = 56.dp
+    val buttonSpacing = 12.dp
 }
 
 object CookShapes {
