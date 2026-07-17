@@ -27,6 +27,8 @@ class ChatViewModel(
     private var currentConversationId: Long? = null
     private val successfulTurns = mutableListOf<ConversationHistoryTurn>()
     private val pendingPersistenceTurns = mutableListOf<ConversationHistoryTurn>()
+    private var draftHistoryIndex: Int? = null
+    private var draftBeforeHistoryNavigation: String? = null
 
     private val initialMessage = when (cookRepository.startupIssue) {
         CookStartupIssue.MissingApiKey -> strings.missingApiKey
@@ -55,8 +57,39 @@ class ChatViewModel(
 
     /** Updates the draft and clears the request error. */
     fun onDraftChanged(value: String) {
+        resetDraftHistoryNavigation()
         _draftUiState.update { state -> state.copy(draft = value) }
         _requestUiState.update { state -> state.copy(errorMessage = "") }
+    }
+
+    /** Browses persisted successful user messages without discarding the current draft. */
+    fun navigateDraftHistory(direction: ChatDraftHistoryDirection): Boolean {
+        if (successfulTurns.isEmpty()) return false
+
+        when (direction) {
+            ChatDraftHistoryDirection.Previous -> {
+                val nextIndex = draftHistoryIndex?.let { (it - 1).coerceAtLeast(0) }
+                    ?: successfulTurns.lastIndex.also {
+                        draftBeforeHistoryNavigation = _draftUiState.value.draft
+                    }
+                draftHistoryIndex = nextIndex
+                updateDraftFromHistory(successfulTurns[nextIndex].userContent)
+            }
+
+            ChatDraftHistoryDirection.Next -> {
+                val currentIndex = draftHistoryIndex ?: return false
+                if (currentIndex == successfulTurns.lastIndex) {
+                    draftHistoryIndex = null
+                    updateDraftFromHistory(draftBeforeHistoryNavigation.orEmpty())
+                    draftBeforeHistoryNavigation = null
+                } else {
+                    val nextIndex = currentIndex + 1
+                    draftHistoryIndex = nextIndex
+                    updateDraftFromHistory(successfulTurns[nextIndex].userContent)
+                }
+            }
+        }
+        return true
     }
 
     /** Streams the assistant response and persists only a completed, non-empty response. */
@@ -87,6 +120,7 @@ class ChatViewModel(
             )
         }
         _draftUiState.update { state -> state.copy(draft = "") }
+        resetDraftHistoryNavigation()
         _requestUiState.update { ChatRequestUiState(isSending = true) }
 
         viewModelScope.launch(Dispatchers.Default) {
@@ -163,6 +197,7 @@ class ChatViewModel(
                 currentConversationId = null
                 successfulTurns.clear()
                 pendingPersistenceTurns.clear()
+                resetDraftHistoryNavigation()
                 _conversationUiState.update { ChatConversationUiState(listOf(initialAgentMessage())) }
                 _historyUiState.update { ChatHistoryUiState(isLoaded = true) }
             } else {
@@ -228,6 +263,16 @@ class ChatViewModel(
                 },
             )
         }
+    }
+
+    private fun updateDraftFromHistory(value: String) {
+        _draftUiState.update { state -> state.copy(draft = value) }
+        _requestUiState.update { state -> state.copy(errorMessage = "") }
+    }
+
+    private fun resetDraftHistoryNavigation() {
+        draftHistoryIndex = null
+        draftBeforeHistoryNavigation = null
     }
 
     private fun initialAgentMessage() = ChatMessage(

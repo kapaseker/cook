@@ -1,9 +1,13 @@
 package page.chat.screen
 
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import page.chat.biz.ChatMessage
 import page.chat.biz.MessageAuthor
 import kotlin.test.Test
 import kotlin.test.assertNotEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ChatConversationScreenTest {
 
@@ -27,5 +31,18 @@ class ChatConversationScreenTest {
         )
 
         assertNotEquals(beforeChunk, afterChunk)
+    }
+
+    @Test
+    fun `history navigation only activates at the relevant multiline boundary`() {
+        val middleLine = TextFieldValue("First\nSecond\nThird", selection = TextRange(8))
+        val firstLine = TextFieldValue("First\nSecond\nThird", selection = TextRange(2))
+        val lastLine = TextFieldValue("First\nSecond\nThird", selection = TextRange(16))
+
+        assertTrue(isCursorOnFirstLine(firstLine))
+        assertFalse(isCursorOnLastLine(firstLine))
+        assertFalse(isCursorOnFirstLine(middleLine))
+        assertFalse(isCursorOnLastLine(middleLine))
+        assertTrue(isCursorOnLastLine(lastLine))
     }
 }

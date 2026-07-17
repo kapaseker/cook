@@ -9,11 +9,17 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import cook.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -26,6 +32,7 @@ import page.chat.biz.ChatConversationUiState
 import page.chat.biz.ChatDraftUiState
 import page.chat.biz.ChatRequestUiState
 import page.chat.biz.ChatHistoryUiState
+import page.chat.biz.ChatDraftHistoryDirection
 import page.chat.biz.MessageAuthor
 import page.chat.markdown.AgentMarkdownText
 
@@ -37,6 +44,7 @@ internal fun ChatConversationScreen(
     requestState: ChatRequestUiState,
     historyState: ChatHistoryUiState,
     onDraftChanged: (String) -> Unit,
+    onNavigateDraftHistory: (ChatDraftHistoryDirection) -> Boolean,
     onSend: () -> Unit,
     onRequestClearHistory: () -> Unit,
     onDismissClearHistoryConfirmation: () -> Unit,
@@ -75,6 +83,7 @@ internal fun ChatConversationScreen(
             requestErrorMessage = requestState.errorMessage,
             historyErrorMessage = historyState.errorMessage,
             onDraftChanged = onDraftChanged,
+            onNavigateDraftHistory = onNavigateDraftHistory,
             onSend = onSend,
         )
         if (historyState.isClearConfirmationVisible) {
@@ -240,9 +249,17 @@ private fun MessageComposer(
     requestErrorMessage: String,
     historyErrorMessage: String,
     onDraftChanged: (String) -> Unit,
+    onNavigateDraftHistory: (ChatDraftHistoryDirection) -> Boolean,
     onSend: () -> Unit,
 ) {
     val canSend = draft.isNotBlank() && !isSending
+    var editorValue by remember { mutableStateOf(TextFieldValue(draft)) }
+
+    LaunchedEffect(draft) {
+        if (editorValue.text != draft) {
+            editorValue = TextFieldValue(draft, selection = TextRange(draft.length))
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(CookDimensions.composerPadding),
@@ -268,19 +285,40 @@ private fun MessageComposer(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = draft,
-                onValueChange = onDraftChanged,
+                value = editorValue,
+                onValueChange = { value ->
+                    editorValue = value
+                    onDraftChanged(value.text)
+                },
                 modifier = Modifier.weight(1f).onPreviewKeyEvent { event ->
-                    if (event.key == Key.Enter && event.type == KeyEventType.KeyUp && canSend) {
-                        onSend()
-                        true
-                    } else {
-                        false
+                    when {
+                        event.key == Key.DirectionUp &&
+                            event.type == KeyEventType.KeyDown &&
+                            isCursorOnFirstLine(editorValue) -> {
+                            onNavigateDraftHistory(ChatDraftHistoryDirection.Previous)
+                        }
+
+                        event.key == Key.DirectionDown &&
+                            event.type == KeyEventType.KeyDown &&
+                            isCursorOnLastLine(editorValue) -> {
+                            onNavigateDraftHistory(ChatDraftHistoryDirection.Next)
+                        }
+
+                        event.key == Key.Enter &&
+                            event.type == KeyEventType.KeyDown &&
+                            !event.isShiftPressed &&
+                            canSend -> {
+                            onSend()
+                            true
+                        }
+
+                        else -> false
                     }
                 },
                 enabled = !isSending,
                 placeholder = { Text(stringResource(Res.string.message_placeholder)) },
-                singleLine = true,
+                singleLine = false,
+                maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
             )
@@ -296,6 +334,14 @@ private fun MessageComposer(
         }
     }
 }
+
+/** Returns whether the editor selection begins on its first line. */
+internal fun isCursorOnFirstLine(value: TextFieldValue): Boolean =
+    value.text.substring(0, value.selection.start).none { it == '\n' }
+
+/** Returns whether the editor selection ends on its last line. */
+internal fun isCursorOnLastLine(value: TextFieldValue): Boolean =
+    value.text.substring(value.selection.end).none { it == '\n' }
 
 /** Confirms permanent deletion of the persisted conversation. */
 @Composable

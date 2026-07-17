@@ -25,6 +25,7 @@ internal fun ChatPage(onOpenSettings: () -> Unit) {
         requestState = requestState,
         historyState = historyState,
         onDraftChanged = viewModel::onDraftChanged,
+        onNavigateDraftHistory = viewModel::navigateDraftHistory,
         onSend = viewModel::sendMessage,
         onRequestClearHistory = viewModel::requestClearHistory,
         onDismissClearHistoryConfirmation = viewModel::dismissClearHistoryConfirmation,

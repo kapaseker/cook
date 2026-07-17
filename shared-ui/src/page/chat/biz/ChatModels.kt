@@ -22,6 +22,12 @@ data class ChatDraftUiState(
     val draft: String = "",
 )
 
+/** Direction for browsing successful user messages from the chat composer. */
+enum class ChatDraftHistoryDirection {
+    Previous,
+    Next,
+}
+
 /** State for the lifecycle of an agent request. */
 data class ChatRequestUiState(
     val isSending: Boolean = false,

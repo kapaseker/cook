@@ -132,6 +132,38 @@ class ChatViewModelTest {
             viewModel.conversationUiState.value.messages.last().text.contains("Connection unavailable"),
         )
     }
+
+    @Test
+    fun `browses successful user messages and restores the interrupted draft`() = runBlocking {
+        val history = ConversationHistory(
+            id = 7L,
+            turns = listOf(
+                successfulTurn(sequence = 0, question = "First question"),
+                successfulTurn(sequence = 1, question = "Second question"),
+            ),
+        )
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(),
+            historyRepository = FakeConversationHistoryRepo(history),
+            strings = testChatStrings,
+        )
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
+
+        viewModel.onDraftChanged("Unsent draft")
+
+        assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Previous))
+        assertEquals("Second question", viewModel.draftUiState.value.draft)
+        assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Previous))
+        assertEquals("First question", viewModel.draftUiState.value.draft)
+        assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Previous))
+        assertEquals("First question", viewModel.draftUiState.value.draft)
+
+        assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Next))
+        assertEquals("Second question", viewModel.draftUiState.value.draft)
+        assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Next))
+        assertEquals("Unsent draft", viewModel.draftUiState.value.draft)
+        assertTrue(!viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Next))
+    }
 }
 
 private class FakeCookRepo(
@@ -148,8 +180,10 @@ private class FakeCookRepo(
     }
 }
 
-private open class FakeConversationHistoryRepo : ConversationHistoryRepo {
-    override suspend fun loadLatestConversation(): ConversationHistory? = null
+private open class FakeConversationHistoryRepo(
+    private val initialHistory: ConversationHistory? = null,
+) : ConversationHistoryRepo {
+    override suspend fun loadLatestConversation(): ConversationHistory? = initialHistory
 
     override suspend fun saveSuccessfulTurns(
         conversationId: Long?,
@@ -158,6 +192,14 @@ private open class FakeConversationHistoryRepo : ConversationHistoryRepo {
 
     override suspend fun deleteConversation(conversationId: Long) = Unit
 }
+
+private fun successfulTurn(sequence: Long, question: String) = ConversationHistoryTurn(
+    sequence = sequence,
+    userContent = question,
+    assistantContent = "Answer $sequence",
+    modelId = "test",
+    completedAtEpochMillis = sequence,
+)
 
 private class RecordingConversationHistoryRepo : FakeConversationHistoryRepo() {
     val loadCompleted = CompletableDeferred<Unit>()
