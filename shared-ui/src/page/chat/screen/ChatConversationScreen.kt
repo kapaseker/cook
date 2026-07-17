@@ -26,6 +26,7 @@ import page.chat.biz.ChatConversationUiState
 import page.chat.biz.ChatDraftUiState
 import page.chat.biz.ChatRequestUiState
 import page.chat.biz.MessageAuthor
+import page.chat.markdown.AgentMarkdownText
 
 /** Renders the chat header, message list, and composer. */
 @Composable
@@ -170,15 +171,23 @@ private fun MessageBubble(message: ChatMessage) {
                     vertical = CookDimensions.messageBubbleVerticalPadding,
                 ),
             ) {
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (message.isPending) {
-                        textColor.copy(alpha = CookOpacity.pendingMessage)
-                    } else {
-                        textColor
-                    },
-                )
+                val contentColor = if (message.isPending) {
+                    textColor.copy(alpha = CookOpacity.pendingMessage)
+                } else {
+                    textColor
+                }
+                if (isUser) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = contentColor,
+                    )
+                } else {
+                    AgentMarkdownText(
+                        markdown = message.text,
+                        color = contentColor,
+                    )
+                }
             }
         }
     }

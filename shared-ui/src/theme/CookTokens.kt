@@ -27,5 +27,5 @@ object CookShapes {
 }
 
 object CookOpacity {
-    const val pendingMessage = 0.72f
+    const val pendingMessage = 0.70f
 }
