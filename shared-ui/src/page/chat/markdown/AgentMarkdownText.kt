@@ -2,6 +2,10 @@ package page.chat.markdown
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.material3.MaterialTheme
@@ -29,18 +33,73 @@ internal fun AgentMarkdownText(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         document.blocks.forEach { block ->
-            Text(
-                text = block.inlines.toAnnotatedString(),
-                style = when (block) {
-                    is MarkdownBlock.Text -> MaterialTheme.typography.bodyLarge
-                    is MarkdownBlock.Heading -> when (block.level) {
-                        1 -> MaterialTheme.typography.titleLarge
-                        2 -> MaterialTheme.typography.titleMedium
-                        else -> MaterialTheme.typography.titleSmall
+            MarkdownBlockView(block = block, color = color)
+        }
+    }
+}
+
+@Composable
+private fun MarkdownBlockView(
+    block: MarkdownBlock,
+    color: Color,
+    listDepth: Int = 0,
+) {
+    when (block) {
+        is MarkdownBlock.List -> MarkdownListView(
+            list = block,
+            color = color,
+            depth = listDepth,
+        )
+        else -> Text(
+            text = block.inlines.toAnnotatedString(),
+            style = when (block) {
+                is MarkdownBlock.Text -> MaterialTheme.typography.bodyLarge
+                is MarkdownBlock.Heading -> when (block.level) {
+                    1 -> MaterialTheme.typography.titleLarge
+                    2 -> MaterialTheme.typography.titleMedium
+                    else -> MaterialTheme.typography.titleSmall
+                }
+                is MarkdownBlock.List -> error("List is rendered above")
+            },
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun MarkdownListView(
+    list: MarkdownBlock.List,
+    color: Color,
+    depth: Int,
+) {
+    Column(
+        modifier = Modifier.padding(start = (depth * 12).dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        list.items.forEachIndexed { itemIndex, item ->
+            Row {
+                Text(
+                    text = if (list.ordered) {
+                        "${list.startNumber + itemIndex}${list.delimiter}"
+                    } else {
+                        "•"
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = color,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(if (list.isLoose) 8.dp else 0.dp),
+                ) {
+                    item.blocks.forEach { block ->
+                        MarkdownBlockView(
+                            block = block,
+                            color = color,
+                            listDepth = depth + 1,
+                        )
                     }
-                },
-                color = color,
-            )
+                }
+            }
         }
     }
 }

@@ -64,6 +64,45 @@ class MarkdownParserTest {
         assertEquals("file_name and emphasis", inlines.plainText())
         assertEquals(1, inlines.filterIsInstance<MarkdownInline.Styled>().size)
     }
+
+    @Test
+    fun `parses nested unordered lists with inline styles`() {
+        val list = assertIs<MarkdownBlock.List>(
+            parseMarkdown("- **Parent**\n  - *Child*\n  - Second child\n- Next").blocks.single(),
+        )
+
+        assertEquals(false, list.ordered)
+        assertEquals(2, list.items.size)
+        assertEquals("Parent", assertIs<MarkdownBlock.Text>(list.items[0].blocks[0]).inlines.plainText())
+        val childList = assertIs<MarkdownBlock.List>(list.items[0].blocks[1])
+        assertEquals("Child", assertIs<MarkdownBlock.Text>(childList.items[0].blocks.single()).inlines.plainText())
+    }
+
+    @Test
+    fun `ordered lists retain their first number and increment following items`() {
+        val list = assertIs<MarkdownBlock.List>(parseMarkdown("3. Third\n99. Fourth").blocks.single())
+
+        assertEquals(true, list.ordered)
+        assertEquals(3, list.startNumber)
+        assertEquals(listOf("Third", "Fourth"), list.items.map { item ->
+            assertIs<MarkdownBlock.Text>(item.blocks.single()).inlines.plainText()
+        })
+    }
+
+    @Test
+    fun `non one ordered marker does not interrupt a paragraph`() {
+        val block = assertIs<MarkdownBlock.Text>(parseMarkdown("Paragraph\n2. Not a list").blocks.single())
+
+        assertEquals("Paragraph 2. Not a list", block.inlines.plainText())
+    }
+
+    @Test
+    fun `blank lines make a list loose`() {
+        val list = assertIs<MarkdownBlock.List>(parseMarkdown("- First\n\n  Continued\n- Second").blocks.single())
+
+        assertEquals(true, list.isLoose)
+        assertEquals(2, list.items[0].blocks.size)
+    }
 }
 
 private fun List<MarkdownInline>.plainText(): String = joinToString(separator = "") { inline ->
