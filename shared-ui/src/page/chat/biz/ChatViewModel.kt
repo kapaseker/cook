@@ -94,7 +94,7 @@ class ChatViewModel(
 
     /** Streams the assistant response and persists only a completed, non-empty response. */
     fun sendMessage() {
-        val question = _draftUiState.value.draft.trim()
+        val question = removeEmptyLines(_draftUiState.value.draft)
         if (
             question.isEmpty() ||
             _requestUiState.value.isSending ||
@@ -294,3 +294,9 @@ class ChatViewModel(
         else -> throwable.message ?: strings.agentRequestFailed
     }
 }
+
+/** Removes blank draft lines before a message is sent while retaining non-empty line breaks. */
+internal fun removeEmptyLines(draft: String): String = draft.lineSequence()
+    .filter(String::isNotBlank)
+    .joinToString(separator = "\n")
+    .trim()

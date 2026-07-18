@@ -5,11 +5,29 @@ import androidx.compose.ui.text.input.TextFieldValue
 import page.chat.biz.ChatMessage
 import page.chat.biz.MessageAuthor
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ChatConversationScreenTest {
+
+    @Test
+    fun `shortcut hint index advances and wraps`() {
+        assertEquals(1, nextShortcutHintIndex(currentIndex = 0, hintCount = 3))
+        assertEquals(0, nextShortcutHintIndex(currentIndex = 2, hintCount = 3))
+        assertEquals(0, nextShortcutHintIndex(currentIndex = 0, hintCount = 0))
+    }
+
+    @Test
+    fun `line break replaces the selection and places the cursor after it`() {
+        val value = TextFieldValue("FirstSecond", selection = TextRange(5, 11))
+
+        val updated = insertLineBreak(value)
+
+        assertEquals("First\n", updated.text)
+        assertEquals(TextRange(6), updated.selection)
+    }
 
     /** Verifies that scroll trigger changes when the latest message streams more text. */
     @Test

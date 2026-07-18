@@ -3,7 +3,11 @@
     <string name="app_name">Cook</string>
     <string name="model_name">GLM-4.7 Flash</string>
     <string name="user_label">You</string>
-    <string name="message_placeholder">Message Cook</string>
+    <string-array name="shortcut_hints">
+        <item>Press Enter to send</item>
+        <item>Press Shift+Enter for a new line</item>
+        <item>Press ↑ at the first line or ↓ at the last line to browse sent messages</item>
+    </string-array>
     <string name="sending">Sending</string>
     <string name="send">Send</string>
     <string name="welcome_message">\nHi, I'm Cook. 👋\n\nTalk to me in English or Chinese, and I'll help you improve your English along the way.\n</string>

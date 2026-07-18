@@ -111,6 +111,23 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `removes every empty line before sending`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(response = flowOf("A saved answer"))
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("\n\nFirst question\n\n   \nSecond question\n\n")
+        viewModel.sendMessage()
+        withTimeout(1_000) { history.saveCompleted.await() }
+
+        assertEquals(
+            listOf("First question\nSecond question"),
+            history.savedTurns.map(ConversationHistoryTurn::userContent),
+        )
+    }
+
+    @Test
     fun `does not persist a failed response`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(

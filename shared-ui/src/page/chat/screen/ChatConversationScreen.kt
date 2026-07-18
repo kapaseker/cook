@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,7 +22,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import cook.generated.resources.*
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 import theme.CookDimensions
 import theme.CookOpacity
@@ -35,6 +38,7 @@ import page.chat.biz.ChatHistoryUiState
 import page.chat.biz.ChatDraftHistoryDirection
 import page.chat.biz.MessageAuthor
 import page.chat.markdown.AgentMarkdownText
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Renders the chat header, message list, and composer. */
 @Composable
@@ -224,17 +228,19 @@ private fun MessageBubble(message: ChatMessage) {
                 } else {
                     textColor
                 }
-                if (isUser) {
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = contentColor,
-                    )
-                } else {
-                    AgentMarkdownText(
-                        markdown = message.text,
-                        color = contentColor,
-                    )
+                SelectionContainer {
+                    if (isUser) {
+                        Text(
+                            text = message.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = contentColor,
+                        )
+                    } else {
+                        AgentMarkdownText(
+                            markdown = message.text,
+                            color = contentColor,
+                        )
+                    }
                 }
             }
         }
@@ -254,10 +260,19 @@ private fun MessageComposer(
 ) {
     val canSend = draft.isNotBlank() && !isSending
     var editorValue by remember { mutableStateOf(TextFieldValue(draft)) }
+    val shortcutHints = stringArrayResource(Res.array.shortcut_hints)
+    var shortcutHintIndex by remember { mutableStateOf(0) }
 
     LaunchedEffect(draft) {
         if (editorValue.text != draft) {
             editorValue = TextFieldValue(draft, selection = TextRange(draft.length))
+        }
+    }
+
+    LaunchedEffect(shortcutHints.size) {
+        while (true) {
+            delay(SHORTCUT_HINT_DURATION_MILLIS.milliseconds)
+            shortcutHintIndex = nextShortcutHintIndex(shortcutHintIndex, shortcutHints.size)
         }
     }
 
@@ -306,6 +321,14 @@ private fun MessageComposer(
 
                         event.key == Key.Enter &&
                             event.type == KeyEventType.KeyDown &&
+                            event.isShiftPressed -> {
+                            editorValue = insertLineBreak(editorValue)
+                            onDraftChanged(editorValue.text)
+                            true
+                        }
+
+                        event.key == Key.Enter &&
+                            event.type == KeyEventType.KeyDown &&
                             !event.isShiftPressed &&
                             canSend -> {
                             onSend()
@@ -316,7 +339,7 @@ private fun MessageComposer(
                     }
                 },
                 enabled = !isSending,
-                placeholder = { Text(stringResource(Res.string.message_placeholder)) },
+                placeholder = { Text(shortcutHints[shortcutHintIndex]) },
                 singleLine = false,
                 maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -334,6 +357,18 @@ private fun MessageComposer(
         }
     }
 }
+
+private const val SHORTCUT_HINT_DURATION_MILLIS = 4_000L
+
+/** Returns the next shortcut hint position, wrapping to the first hint when needed. */
+internal fun nextShortcutHintIndex(currentIndex: Int, hintCount: Int): Int =
+    if (hintCount <= 0) 0 else (currentIndex + 1) % hintCount
+
+/** Inserts a line break, replacing the current selection and placing the cursor after it. */
+internal fun insertLineBreak(value: TextFieldValue): TextFieldValue = TextFieldValue(
+    text = value.text.replaceRange(value.selection.start, value.selection.end, "\n"),
+    selection = TextRange(value.selection.start + 1),
+)
 
 /** Returns whether the editor selection begins on its first line. */
 internal fun isCursorOnFirstLine(value: TextFieldValue): Boolean =
