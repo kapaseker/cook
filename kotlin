@@ -16,11 +16,6 @@
 
 set -e -u
 
-# Project-local proxy for Kotlin CLI bootstrap and dependency resolution.
-export HTTP_PROXY="http://127.0.0.1:33210"
-export HTTPS_PROXY="http://127.0.0.1:33210"
-export KOTLIN_CLI_JAVA_OPTIONS="${KOTLIN_CLI_JAVA_OPTIONS:-} -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=33210 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=33210"
-
 # The version of the Kotlin Toolchain (and CLI) distribution to provision and use
 kotlin_cli_version=0.11.1
 # Establish chain of trust from here by specifying exact checksum of Kotlin Toolchain (and CLI) distribution to be run
