@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Cook</string>
-    <string name="model_name">GLM-4.7 Flash</string>
+    <string name="model_name">Power by GLM-4.7 Flash</string>
     <string name="user_label">You</string>
     <string-array name="shortcut_hints">
         <item>Press Enter to send</item>
