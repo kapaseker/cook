@@ -1,11 +1,11 @@
 package page.settings
 
 import androidx.compose.runtime.Composable
-import page.settings.screen.SettingsContentScreen
 import page.settings.biz.SettingsUiState
+import page.settings.screen.SettingsContentScreen
+import repository.agent.CookModel
 
-/** Navigation 3 destination for text-scale settings. */
-/** Renders the text-scale settings route. */
+/** Renders the model and text-scale settings route. */
 @Composable
 internal fun SettingsPage(
     state: SettingsUiState,
@@ -13,16 +13,21 @@ internal fun SettingsPage(
     onScaleChanged: (Float) -> Unit,
     onScaleChangeFinished: () -> Unit,
     onResetToDeviceDefault: () -> Unit,
+    onModelSelected: (CookModel) -> Unit,
     onBack: () -> Unit,
 ) {
     SettingsContentScreen(
+        availableModels = state.availableModels,
+        selectedModel = state.selectedModel,
         selectedScale = selectedScale,
         isDeviceDefault = state.userScale == null,
         loadFailed = state.loadFailed,
         saveFailed = state.saveFailed,
+        modelSaveFailed = state.modelSaveFailed,
         onScaleChanged = onScaleChanged,
         onScaleChangeFinished = onScaleChangeFinished,
         onResetToDeviceDefault = onResetToDeviceDefault,
+        onModelSelected = onModelSelected,
         onBack = onBack,
     )
 }

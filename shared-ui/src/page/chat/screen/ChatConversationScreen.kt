@@ -47,6 +47,7 @@ internal fun ChatConversationScreen(
     draftState: ChatDraftUiState,
     requestState: ChatRequestUiState,
     historyState: ChatHistoryUiState,
+    modelName: String,
     onDraftChanged: (String) -> Unit,
     onNavigateDraftHistory: (ChatDraftHistoryDirection) -> Boolean,
     onSend: () -> Unit,
@@ -59,6 +60,7 @@ internal fun ChatConversationScreen(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
     ) {
         ChatHeader(
+            modelName = modelName,
             canClearHistory = historyState.isLoaded &&
                 !historyState.isClearing &&
                 !requestState.isSending &&
@@ -102,6 +104,7 @@ internal fun ChatConversationScreen(
 /** Renders the chat title and settings action. */
 @Composable
 private fun ChatHeader(
+    modelName: String,
     canClearHistory: Boolean,
     onClearHistory: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -123,7 +126,7 @@ private fun ChatHeader(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = stringResource(Res.string.model_name),
+                text = stringResource(Res.string.powered_by_model, modelName),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

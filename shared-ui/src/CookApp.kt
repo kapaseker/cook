@@ -78,6 +78,7 @@ fun CookApp() {
                 entryProvider = entryProvider {
                     entry<ChatRoute> {
                         ChatPage(
+                            selectedModel = settingsState.selectedModel,
                             onOpenSettings = {
                                 if (backStack.lastOrNull() != SettingsRoute) {
                                     backStack.add(SettingsRoute)
@@ -92,6 +93,7 @@ fun CookApp() {
                             onScaleChanged = settingsViewModel::previewScale,
                             onScaleChangeFinished = settingsViewModel::savePreviewedScale,
                             onResetToDeviceDefault = settingsViewModel::resetToDeviceDefault,
+                            onModelSelected = settingsViewModel::selectModel,
                             onBack = { backStack.removeLastOrNull() },
                         )
                     }

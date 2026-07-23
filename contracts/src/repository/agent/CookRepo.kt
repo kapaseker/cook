@@ -7,17 +7,39 @@ data class CookModel(
     val displayName: String,
 )
 
+const val GlmModelId = "glm-4.7-flash"
+const val OpenRouterModelId = "openai/gpt-oss-20b:free"
+
+val GlmCookModel = CookModel(
+    id = GlmModelId,
+    displayName = "GLM-4.7 Flash",
+)
+
+val OpenRouterCookModel = CookModel(
+    id = OpenRouterModelId,
+    displayName = "GPT-OSS 20B (Free)",
+)
+
+val AvailableCookModels = listOf(GlmCookModel, OpenRouterCookModel)
+
+fun findCookModelById(id: String?): CookModel? =
+    AvailableCookModels.firstOrNull { model -> model.id == id }
+
+fun cookModelById(id: String?): CookModel = findCookModelById(id) ?: GlmCookModel
+
 interface CookRepo {
-    val startupIssue: CookStartupIssue?
-    val model: CookModel
+    fun startupIssue(model: CookModel): CookStartupIssue?
 
     /** Streams the assistant response for the supplied conversation. */
-    fun sendMessage(conversation: List<CookConversationMessage>): Flow<String>
+    fun sendMessage(
+        model: CookModel,
+        conversation: List<CookConversationMessage>,
+    ): Flow<String>
 }
 
-enum class CookStartupIssue {
-    MissingApiKey,
-    UnsupportedPlatform,
+sealed interface CookStartupIssue {
+    data class MissingApiKey(val environmentVariable: String) : CookStartupIssue
+    data object UnsupportedPlatform : CookStartupIssue
 }
 
 class CookStartupException(

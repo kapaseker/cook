@@ -10,12 +10,16 @@ const val TextScaleSliderSteps = 34
 
 interface SettingsStore {
     val userScale: Flow<Float?>
+    val selectedModelId: Flow<String>
 
     /** Persists a normalized user-selected text scale. */
     suspend fun setUserScale(scale: Float)
 
     /** Removes the persisted text-scale override. */
     suspend fun clearUserScale()
+
+    /** Persists the selected chat model. */
+    suspend fun setSelectedModelId(modelId: String)
 }
 
 /** Rounds and bounds a text scale to the supported range. */

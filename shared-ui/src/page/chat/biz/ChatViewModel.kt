@@ -9,11 +9,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import page.chat.ChatStrings
+import page.chat.missingApiKey
 import repository.agent.CookConversationMessage
 import repository.agent.CookMessageRole
+import repository.agent.CookModel
 import repository.agent.CookRepo
 import repository.agent.CookStartupException
 import repository.agent.CookStartupIssue
+import repository.agent.GlmCookModel
 import repository.history.ConversationHistoryRepo
 import repository.history.ConversationHistoryTurn
 
@@ -21,21 +24,17 @@ class ChatViewModel(
     private val cookRepository: CookRepo,
     private val historyRepository: ConversationHistoryRepo,
     private val strings: ChatStrings,
+    initialModel: CookModel = GlmCookModel,
 ) : ViewModel() {
 
     private var nextMessageId = 0L
+    private var selectedModel = initialModel
     private var currentConversationId: Long? = null
     private val successfulTurns = mutableListOf<ConversationHistoryTurn>()
     private val sentUserMessages = mutableListOf<String>()
     private val pendingPersistenceTurns = mutableListOf<ConversationHistoryTurn>()
     private var draftHistoryIndex: Int? = null
     private var draftBeforeHistoryNavigation: String? = null
-
-    private val initialMessage = when (cookRepository.startupIssue) {
-        CookStartupIssue.MissingApiKey -> strings.missingApiKey
-        CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
-        null -> strings.welcomeMessage
-    }
 
     private val _conversationUiState = MutableStateFlow(
         ChatConversationUiState(messages = listOf(initialAgentMessage())),
@@ -61,6 +60,18 @@ class ChatViewModel(
         resetDraftHistoryNavigation()
         _draftUiState.update { state -> state.copy(draft = value) }
         _requestUiState.update { state -> state.copy(errorMessage = "") }
+    }
+
+    /** Updates the selected model and any model-specific startup guidance. */
+    fun onModelChanged(model: CookModel) {
+        selectedModel = model
+        _conversationUiState.update { state ->
+            if (state.messages.size == 1 && state.messages.single().author == MessageAuthor.Agent) {
+                state.copy(messages = listOf(initialAgentMessage(state.messages.single().id)))
+            } else {
+                state
+            }
+        }
     }
 
     /** Browses user messages sent during this session without discarding the current draft. */
@@ -94,7 +105,8 @@ class ChatViewModel(
     }
 
     /** Streams the assistant response and persists only a completed, non-empty response. */
-    fun sendMessage() {
+    fun sendMessage(model: CookModel = GlmCookModel) {
+        selectedModel = model
         val question = removeEmptyLines(_draftUiState.value.draft)
         if (
             question.isEmpty() ||
@@ -102,6 +114,12 @@ class ChatViewModel(
             !_historyUiState.value.isLoaded ||
             _historyUiState.value.isClearing
         ) {
+            return
+        }
+        cookRepository.startupIssue(model)?.let { issue ->
+            _requestUiState.update { state ->
+                state.copy(errorMessage = startupIssueMessage(issue))
+            }
             return
         }
 
@@ -128,7 +146,7 @@ class ChatViewModel(
         viewModelScope.launch(Dispatchers.Default) {
             val result = runCatching {
                 val collected = StringBuilder()
-                cookRepository.sendMessage(modelConversation(question)).collect { chunk ->
+                cookRepository.sendMessage(model, modelConversation(question)).collect { chunk ->
                     collected.append(chunk)
                     updatePendingMessage(pendingMessageId, collected.toString())
                 }
@@ -142,7 +160,7 @@ class ChatViewModel(
                     sequence = successfulTurns.size.toLong(),
                     userContent = question,
                     assistantContent = answer,
-                    modelId = cookRepository.model.id,
+                    modelId = model.id,
                     completedAtEpochMillis = System.currentTimeMillis(),
                 )
                 successfulTurns += turn
@@ -284,10 +302,13 @@ class ChatViewModel(
         draftBeforeHistoryNavigation = null
     }
 
-    private fun initialAgentMessage() = ChatMessage(
-        id = nextId(),
+    private fun initialAgentMessage(id: Long = nextId()) = ChatMessage(
+        id = id,
         author = MessageAuthor.Agent,
-        text = initialMessage,
+        text = when (val issue = cookRepository.startupIssue(selectedModel)) {
+            null -> strings.welcomeMessage
+            else -> startupIssueMessage(issue)
+        },
     )
 
     private fun nextId(): Long {
@@ -296,11 +317,13 @@ class ChatViewModel(
     }
 
     private fun errorMessage(throwable: Throwable): String = when (throwable) {
-        is CookStartupException -> when (throwable.issue) {
-            CookStartupIssue.MissingApiKey -> strings.missingApiKey
-            CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
-        }
+        is CookStartupException -> startupIssueMessage(throwable.issue)
         else -> throwable.message ?: strings.agentRequestFailed
+    }
+
+    private fun startupIssueMessage(issue: CookStartupIssue): String = when (issue) {
+        is CookStartupIssue.MissingApiKey -> strings.missingApiKey(issue.environmentVariable)
+        CookStartupIssue.UnsupportedPlatform -> strings.unsupportedPlatform
     }
 }
 

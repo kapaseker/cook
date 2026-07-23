@@ -27,6 +27,9 @@ data class ChatStrings(
     val historyClearFailed: String,
 )
 
+fun ChatStrings.missingApiKey(environmentVariable: String): String =
+    missingApiKey.replace("{environment_variable}", environmentVariable)
+
 /** Loads localized strings used by the chat feature. */
 @Composable
 internal fun chatStrings() = ChatStrings(

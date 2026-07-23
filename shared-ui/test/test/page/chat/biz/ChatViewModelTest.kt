@@ -6,6 +6,8 @@ import repository.agent.CookMessageRole
 import repository.agent.CookModel
 import repository.agent.CookRepo
 import repository.agent.CookStartupIssue
+import repository.agent.GlmCookModel
+import repository.agent.OpenRouterCookModel
 import repository.history.ConversationHistory
 import repository.history.ConversationHistoryRepo
 import repository.history.ConversationHistoryTurn
@@ -45,7 +47,9 @@ class ChatViewModelTest {
     fun `shows the startup error instead of the welcome message`() {
         val startupError = "Set the GLM_API_KEY environment variable before starting Cook."
         val viewModel = ChatViewModel(
-            cookRepository = FakeCookRepo(startupIssue = CookStartupIssue.MissingApiKey),
+            cookRepository = FakeCookRepo(
+                startupIssue = CookStartupIssue.MissingApiKey("GLM_API_KEY"),
+            ),
             historyRepository = FakeConversationHistoryRepo(),
             strings = testChatStrings,
         )
@@ -125,6 +129,83 @@ class ChatViewModelTest {
         assertEquals(
             listOf("First question\nSecond question"),
             history.savedTurns.map(ConversationHistoryTurn::userContent),
+        )
+    }
+
+    @Test
+    fun `selected model is used for the request and persisted with the completed turn`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(response = flowOf("OpenRouter answer"))
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Use the selected model")
+        viewModel.sendMessage(OpenRouterCookModel)
+        withTimeout(1_000) { history.saveCompleted.await() }
+
+        assertEquals(OpenRouterCookModel, cook.lastModel)
+        assertEquals(OpenRouterCookModel.id, history.savedTurns.single().modelId)
+    }
+
+    @Test
+    fun `switching model during a response keeps the request model snapshot`() = runBlocking {
+        val releaseResponse = CompletableDeferred<Unit>()
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(
+            response = flow {
+                emit("GLM ")
+                releaseResponse.await()
+                emit("answer")
+            },
+        )
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Keep the original request model")
+        viewModel.sendMessage(GlmCookModel)
+        withTimeout(1_000) { cook.requestStarted.await() }
+        viewModel.onModelChanged(OpenRouterCookModel)
+        releaseResponse.complete(Unit)
+        withTimeout(1_000) { history.saveCompleted.await() }
+
+        assertEquals(GlmCookModel, cook.lastModel)
+        assertEquals(GlmCookModel.id, history.savedTurns.single().modelId)
+    }
+
+    @Test
+    fun `missing selected model key blocks sending and preserves the draft`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(
+            startupIssue = CookStartupIssue.MissingApiKey("OPENROUTER_API_KEY"),
+        )
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Keep this draft")
+        viewModel.sendMessage(OpenRouterCookModel)
+
+        assertEquals("Keep this draft", viewModel.draftUiState.value.draft)
+        assertEquals(
+            "Set the OPENROUTER_API_KEY environment variable before starting Cook.",
+            viewModel.requestUiState.value.errorMessage,
+        )
+        assertTrue(cook.lastConversation.isEmpty())
+    }
+
+    @Test
+    fun `switching model refreshes model specific startup guidance`() {
+        val cook = FakeCookRepo(
+            startupIssues = mapOf(
+                OpenRouterCookModel.id to CookStartupIssue.MissingApiKey("OPENROUTER_API_KEY"),
+            ),
+        )
+        val viewModel = ChatViewModel(cook, FakeConversationHistoryRepo(), testChatStrings)
+
+        viewModel.onModelChanged(OpenRouterCookModel)
+
+        assertEquals(
+            "Set the OPENROUTER_API_KEY environment variable before starting Cook.",
+            viewModel.conversationUiState.value.messages.single().text,
         )
     }
 
@@ -269,15 +350,25 @@ class ChatViewModelTest {
 }
 
 private class FakeCookRepo(
-    override val startupIssue: CookStartupIssue? = null,
+    private val startupIssue: CookStartupIssue? = null,
+    private val startupIssues: Map<String, CookStartupIssue> = emptyMap(),
     var response: Flow<String> = emptyFlow(),
 ) : CookRepo {
-    override val model = CookModel(id = "test", displayName = "Test model")
+    var lastModel: CookModel? = null
     var lastConversation: List<CookConversationMessage> = emptyList()
+    val requestStarted = CompletableDeferred<Unit>()
+
+    override fun startupIssue(model: CookModel): CookStartupIssue? =
+        startupIssues[model.id] ?: startupIssue
 
     /** Verifies that send message. */
-    override fun sendMessage(conversation: List<CookConversationMessage>): Flow<String> {
+    override fun sendMessage(
+        model: CookModel,
+        conversation: List<CookConversationMessage>,
+    ): Flow<String> {
+        lastModel = model
         lastConversation = conversation
+        requestStarted.complete(Unit)
         return response
     }
 }
@@ -330,7 +421,7 @@ private val testChatStrings = ChatStrings(
     emptyResponse = "The agent returned an empty response.",
     agentRequestFailed = "The agent request failed.",
     couldNotAnswer = "I could not answer that request.",
-    missingApiKey = "Set the GLM_API_KEY environment variable before starting Cook.",
+    missingApiKey = "Set the {environment_variable} environment variable before starting Cook.",
     unsupportedPlatform = "Cook's AI agent is currently available on Desktop only.",
     historyLoadFailed = "Couldn't load conversation history.",
     historySaveFailed = "Couldn't save conversation history.",

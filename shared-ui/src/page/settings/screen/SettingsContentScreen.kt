@@ -6,6 +6,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -17,17 +21,22 @@ import page.settings.biz.textScaleLabel
 import repository.settings.MaximumTextScale
 import repository.settings.MinimumTextScale
 import repository.settings.TextScaleSliderSteps
+import repository.agent.CookModel
 
 /** Renders the text-scale controls, status messages, and preview. */
 @Composable
 internal fun SettingsContentScreen(
+    availableModels: List<CookModel>,
+    selectedModel: CookModel,
     selectedScale: Float,
     isDeviceDefault: Boolean,
     loadFailed: Boolean,
     saveFailed: Boolean,
+    modelSaveFailed: Boolean,
     onScaleChanged: (Float) -> Unit,
     onScaleChangeFinished: () -> Unit,
     onResetToDeviceDefault: () -> Unit,
+    onModelSelected: (CookModel) -> Unit,
     onBack: () -> Unit,
 ) {
     Column(
@@ -44,6 +53,15 @@ internal fun SettingsContentScreen(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            ModelSelector(
+                availableModels = availableModels,
+                selectedModel = selectedModel,
+                onModelSelected = onModelSelected,
+            )
+            if (modelSaveFailed) {
+                ErrorText(stringResource(Res.string.model_save_failed))
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(
                 text = stringResource(Res.string.text_scale),
                 style = MaterialTheme.typography.titleLarge,
@@ -98,6 +116,48 @@ internal fun SettingsContentScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/** Renders the global chat-model dropdown. */
+@Composable
+private fun ModelSelector(
+    availableModels: List<CookModel>,
+    selectedModel: CookModel,
+    onModelSelected: (CookModel) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(Res.string.model),
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Box {
+            OutlinedButton(onClick = { expanded = true }) {
+                Text(selectedModel.displayName)
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                availableModels.forEach { model ->
+                    DropdownMenuItem(
+                        text = { Text(model.displayName) },
+                        onClick = {
+                            expanded = false
+                            onModelSelected(model)
+                        },
+                        leadingIcon = {
+                            RadioButton(
+                                selected = model.id == selectedModel.id,
+                                onClick = null,
+                            )
+                        },
+                    )
+                }
+            }
         }
     }
 }

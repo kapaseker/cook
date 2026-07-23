@@ -9,7 +9,9 @@ import cook.generated.resources.history_clear_failed
 import cook.generated.resources.history_load_failed
 import cook.generated.resources.history_save_failed
 import cook.generated.resources.missing_api_key
-import cook.generated.resources.model_name
+import cook.generated.resources.model
+import cook.generated.resources.model_save_failed
+import cook.generated.resources.powered_by_model
 import cook.generated.resources.send
 import cook.generated.resources.sending
 import cook.generated.resources.settings
@@ -31,7 +33,7 @@ class ResourcesTest {
     @Test
     fun `default English strings preserve the existing copy`() = runBlocking {
         assertEquals("Cook", getString(Res.string.app_name))
-        assertEquals("Power by GLM-4.7 Flash", getString(Res.string.model_name))
+        assertEquals("Powered by GLM-4.7 Flash", getString(Res.string.powered_by_model, "GLM-4.7 Flash"))
         assertEquals("You", getString(Res.string.user_label))
         assertEquals(
             listOf(
@@ -47,6 +49,8 @@ class ResourcesTest {
         assertEquals("Sending", getString(Res.string.sending))
         assertEquals("Send", getString(Res.string.send))
         assertEquals("Settings", getString(Res.string.settings))
+        assertEquals("Model", getString(Res.string.model))
+        assertEquals("Couldn't save model selection.", getString(Res.string.model_save_failed))
         assertEquals("Text scale", getString(Res.string.text_scale))
         assertEquals("Thinking...", getString(Res.string.thinking))
         assertEquals(
@@ -56,7 +60,7 @@ class ResourcesTest {
         assertEquals("The agent request failed.", getString(Res.string.agent_request_failed))
         assertEquals("I could not answer that request.", getString(Res.string.could_not_answer))
         assertEquals(
-            "Set the GLM_API_KEY environment variable before starting Cook.",
+            "Set the {environment_variable} environment variable before starting Cook.",
             getString(Res.string.missing_api_key),
         )
         assertEquals(

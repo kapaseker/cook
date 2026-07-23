@@ -16,6 +16,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import repository.agent.GlmModelId
+import repository.agent.OpenRouterModelId
 
 class SettingsStorageTest {
     /** Verifies that user override can be saved and removed. */
@@ -44,6 +46,37 @@ class SettingsStorageTest {
 
             preferences.clearUserScale()
             assertNull(preferences.userScale.first())
+        } finally {
+            scope.cancel()
+            directory.deleteRecursively()
+        }
+    }
+
+    /** Verifies that model selection defaults safely and survives persistence. */
+    @Test
+    fun `model selection defaults to GLM and persists supported values`() = runBlocking {
+        val directory = Files.createTempDirectory("cook-model-settings-test").toFile()
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        val dataStore = DataStoreFactory.create(
+            storage = OkioStorage(
+                fileSystem = FileSystem.SYSTEM,
+                serializer = PreferencesSerializer,
+                producePath = {
+                    directory.resolve("test.preferences_pb").absolutePath.toPath()
+                },
+            ),
+            scope = scope,
+        )
+        val preferences = SettingsStorage(dataStore)
+
+        try {
+            assertEquals(GlmModelId, preferences.selectedModelId.first())
+
+            preferences.setSelectedModelId(OpenRouterModelId)
+            assertEquals(OpenRouterModelId, preferences.selectedModelId.first())
+
+            preferences.setSelectedModelId("unknown-model")
+            assertEquals(GlmModelId, preferences.selectedModelId.first())
         } finally {
             scope.cancel()
             directory.deleteRecursively()
