@@ -1,5 +1,5 @@
 modules:
   - contracts
-  - shared-ui
   - data
   - jvm-app
+  - shared-ui
