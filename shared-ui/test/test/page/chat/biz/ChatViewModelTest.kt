@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ChatViewModelTest {
@@ -128,10 +129,13 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `does not persist a failed response`() = runBlocking {
+    fun `failed response removes partial agent output and remains available to draft history`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(
-            response = flow { throw IllegalStateException("Connection unavailable") },
+            response = flow {
+                emit("Partial answer")
+                throw IllegalStateException("Connection unavailable")
+            },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
         withTimeout(1_000) { history.loadCompleted.await() }
@@ -139,15 +143,96 @@ class ChatViewModelTest {
         viewModel.onDraftChanged("Do not save this")
         viewModel.sendMessage()
         withTimeout(1_000) {
-            viewModel.conversationUiState.first { state ->
-                state.messages.last().text.contains("Connection unavailable")
-            }
+            viewModel.requestUiState.first { state -> !state.isSending && state.errorMessage.isNotEmpty() }
         }
 
         assertTrue(history.savedTurns.isEmpty())
-        assertTrue(
-            viewModel.conversationUiState.value.messages.last().text.contains("Connection unavailable"),
+        assertEquals(
+            listOf(MessageAuthor.Agent, MessageAuthor.User),
+            viewModel.conversationUiState.value.messages.map(ChatMessage::author),
         )
+        assertEquals("Do not save this", viewModel.conversationUiState.value.messages.last().text)
+        assertEquals("Connection unavailable", viewModel.requestUiState.value.errorMessage)
+
+        assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Previous))
+        assertEquals("Do not save this", viewModel.draftUiState.value.draft)
+        assertEquals("Connection unavailable", viewModel.requestUiState.value.errorMessage)
+    }
+
+    @Test
+    fun `empty response removes the pending agent message and reports the composer error`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(response = emptyFlow()),
+            historyRepository = history,
+            strings = testChatStrings,
+        )
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Question with an empty answer")
+        viewModel.sendMessage()
+        withTimeout(1_000) {
+            viewModel.requestUiState.first { state -> !state.isSending && state.errorMessage.isNotEmpty() }
+        }
+
+        assertEquals(testChatStrings.emptyResponse, viewModel.requestUiState.value.errorMessage)
+        assertEquals(
+            listOf(MessageAuthor.Agent, MessageAuthor.User),
+            viewModel.conversationUiState.value.messages.map(ChatMessage::author),
+        )
+        assertTrue(history.savedTurns.isEmpty())
+    }
+
+    @Test
+    fun `failed user message is excluded from later model context`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(
+            response = flow { throw IllegalStateException("Connection unavailable") },
+        )
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Failed question")
+        viewModel.sendMessage()
+        withTimeout(1_000) { viewModel.requestUiState.first { state -> !state.isSending } }
+
+        cook.response = flowOf("Successful answer")
+        viewModel.onDraftChanged("Successful question")
+        viewModel.sendMessage()
+        withTimeout(1_000) { history.saveCompleted.await() }
+
+        assertEquals(
+            listOf("Successful question"),
+            cook.lastConversation.map(CookConversationMessage::content),
+        )
+    }
+
+    @Test
+    fun `clearing history removes transient failed messages from draft navigation`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(
+                response = flow { throw IllegalStateException("Connection unavailable") },
+            ),
+            historyRepository = history,
+            strings = testChatStrings,
+        )
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Transient failed question")
+        viewModel.sendMessage()
+        withTimeout(1_000) { viewModel.requestUiState.first { state -> !state.isSending } }
+
+        viewModel.requestClearHistory()
+        assertTrue(viewModel.historyUiState.value.isClearConfirmationVisible)
+        viewModel.confirmClearHistory()
+        withTimeout(1_000) {
+            viewModel.historyUiState.first { state -> !state.isClearing }
+        }
+
+        assertEquals(1, viewModel.conversationUiState.value.messages.size)
+        assertEquals("", viewModel.requestUiState.value.errorMessage)
+        assertFalse(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Previous))
     }
 
     @Test
@@ -185,7 +270,7 @@ class ChatViewModelTest {
 
 private class FakeCookRepo(
     override val startupIssue: CookStartupIssue? = null,
-    private val response: Flow<String> = emptyFlow(),
+    var response: Flow<String> = emptyFlow(),
 ) : CookRepo {
     override val model = CookModel(id = "test", displayName = "Test model")
     var lastConversation: List<CookConversationMessage> = emptyList()

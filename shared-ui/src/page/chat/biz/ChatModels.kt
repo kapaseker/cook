@@ -22,7 +22,7 @@ data class ChatDraftUiState(
     val draft: String = "",
 )
 
-/** Direction for browsing successful user messages from the chat composer. */
+/** Direction for browsing user messages sent from the chat composer. */
 enum class ChatDraftHistoryDirection {
     Previous,
     Next,

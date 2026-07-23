@@ -26,6 +26,7 @@ class ChatViewModel(
     private var nextMessageId = 0L
     private var currentConversationId: Long? = null
     private val successfulTurns = mutableListOf<ConversationHistoryTurn>()
+    private val sentUserMessages = mutableListOf<String>()
     private val pendingPersistenceTurns = mutableListOf<ConversationHistoryTurn>()
     private var draftHistoryIndex: Int? = null
     private var draftBeforeHistoryNavigation: String? = null
@@ -62,30 +63,30 @@ class ChatViewModel(
         _requestUiState.update { state -> state.copy(errorMessage = "") }
     }
 
-    /** Browses persisted successful user messages without discarding the current draft. */
+    /** Browses user messages sent during this session without discarding the current draft. */
     fun navigateDraftHistory(direction: ChatDraftHistoryDirection): Boolean {
-        if (successfulTurns.isEmpty()) return false
+        if (sentUserMessages.isEmpty()) return false
 
         when (direction) {
             ChatDraftHistoryDirection.Previous -> {
                 val nextIndex = draftHistoryIndex?.let { (it - 1).coerceAtLeast(0) }
-                    ?: successfulTurns.lastIndex.also {
+                    ?: sentUserMessages.lastIndex.also {
                         draftBeforeHistoryNavigation = _draftUiState.value.draft
                     }
                 draftHistoryIndex = nextIndex
-                updateDraftFromHistory(successfulTurns[nextIndex].userContent)
+                updateDraftFromHistory(sentUserMessages[nextIndex])
             }
 
             ChatDraftHistoryDirection.Next -> {
                 val currentIndex = draftHistoryIndex ?: return false
-                if (currentIndex == successfulTurns.lastIndex) {
+                if (currentIndex == sentUserMessages.lastIndex) {
                     draftHistoryIndex = null
                     updateDraftFromHistory(draftBeforeHistoryNavigation.orEmpty())
                     draftBeforeHistoryNavigation = null
                 } else {
                     val nextIndex = currentIndex + 1
                     draftHistoryIndex = nextIndex
-                    updateDraftFromHistory(successfulTurns[nextIndex].userContent)
+                    updateDraftFromHistory(sentUserMessages[nextIndex])
                 }
             }
         }
@@ -120,6 +121,7 @@ class ChatViewModel(
             )
         }
         _draftUiState.update { state -> state.copy(draft = "") }
+        sentUserMessages += question
         resetDraftHistoryNavigation()
         _requestUiState.update { ChatRequestUiState(isSending = true) }
 
@@ -148,13 +150,12 @@ class ChatViewModel(
                 persistPendingTurns()
                 _requestUiState.update { ChatRequestUiState(isSending = false) }
             } else {
-                val requestError = result.exceptionOrNull()?.let(::errorMessage).orEmpty()
-                val failureText = if (requestError.isEmpty()) {
+                val requestError = if (result.isSuccess) {
                     strings.emptyResponse
                 } else {
-                    "${strings.couldNotAnswer} $requestError"
+                    result.exceptionOrNull()?.let(::errorMessage) ?: strings.agentRequestFailed
                 }
-                updatePendingMessage(pendingMessageId, failureText, isPending = false)
+                removeMessage(pendingMessageId)
                 _requestUiState.update {
                     ChatRequestUiState(isSending = false, errorMessage = requestError)
                 }
@@ -196,9 +197,11 @@ class ChatViewModel(
             if (result.isSuccess) {
                 currentConversationId = null
                 successfulTurns.clear()
+                sentUserMessages.clear()
                 pendingPersistenceTurns.clear()
                 resetDraftHistoryNavigation()
                 _conversationUiState.update { ChatConversationUiState(listOf(initialAgentMessage())) }
+                _requestUiState.update { ChatRequestUiState() }
                 _historyUiState.update { ChatHistoryUiState(isLoaded = true) }
             } else {
                 _historyUiState.update {
@@ -214,6 +217,7 @@ class ChatViewModel(
                 .onSuccess { history ->
                     currentConversationId = history?.id
                     successfulTurns += history?.turns.orEmpty()
+                    sentUserMessages += history?.turns.orEmpty().map(ConversationHistoryTurn::userContent)
                     val messages = history?.turns.orEmpty().flatMap { turn ->
                         listOf(
                             ChatMessage(nextId(), MessageAuthor.User, turn.userContent),
@@ -265,9 +269,14 @@ class ChatViewModel(
         }
     }
 
+    private fun removeMessage(id: Long) {
+        _conversationUiState.update { state ->
+            state.copy(messages = state.messages.filterNot { message -> message.id == id })
+        }
+    }
+
     private fun updateDraftFromHistory(value: String) {
         _draftUiState.update { state -> state.copy(draft = value) }
-        _requestUiState.update { state -> state.copy(errorMessage = "") }
     }
 
     private fun resetDraftHistoryNavigation() {
