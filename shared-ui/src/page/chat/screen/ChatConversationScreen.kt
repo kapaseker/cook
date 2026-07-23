@@ -394,7 +394,12 @@ private fun ClearHistoryConfirmation(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
                 Text(stringResource(Res.string.clear))
             }
         },

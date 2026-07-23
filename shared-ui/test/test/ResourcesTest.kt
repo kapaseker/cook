@@ -31,7 +31,7 @@ class ResourcesTest {
     @Test
     fun `default English strings preserve the existing copy`() = runBlocking {
         assertEquals("Cook", getString(Res.string.app_name))
-        assertEquals("GLM-4.7 Flash", getString(Res.string.model_name))
+        assertEquals("Power by GLM-4.7 Flash", getString(Res.string.model_name))
         assertEquals("You", getString(Res.string.user_label))
         assertEquals(
             listOf(
