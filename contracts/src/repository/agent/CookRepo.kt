@@ -8,7 +8,7 @@ data class CookModel(
 )
 
 const val GlmModelId = "glm-4.7-flash"
-const val OpenRouterModelId = "openai/gpt-oss-20b:free"
+const val OpenRouterModelId = "openrouter/free"
 
 val GlmCookModel = CookModel(
     id = GlmModelId,
@@ -17,7 +17,7 @@ val GlmCookModel = CookModel(
 
 val OpenRouterCookModel = CookModel(
     id = OpenRouterModelId,
-    displayName = "GPT-OSS 20B (Free)",
+    displayName = "OpenRouter Free",
 )
 
 val AvailableCookModels = listOf(GlmCookModel, OpenRouterCookModel)

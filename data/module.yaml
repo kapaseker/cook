@@ -13,8 +13,10 @@ dependencies:
 
 dependencies@jvm:
   - org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2
-  - ai.koog:koog-agents:1.0.0
-  - ai.koog:http-client-ktor:1.0.0
+  - ai.koog:koog-agents:1.1.1
+  - ai.koog:koog-agents-additions:1.1.1-beta
+  - ai.koog:http-client-ktor:1.1.1
+  - ai.koog:prompt-executor-openrouter-client:1.1.1
   - io.ktor:ktor-client-core:3.3.3
   - io.ktor:ktor-client-cio:3.3.3
   - org.slf4j:slf4j-simple:2.0.17

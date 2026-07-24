@@ -148,7 +148,9 @@ class ChatViewModel(
                 val collected = StringBuilder()
                 cookRepository.sendMessage(model, modelConversation(question)).collect { chunk ->
                     collected.append(chunk)
-                    updatePendingMessage(pendingMessageId, collected.toString())
+                    if (collected.isNotBlank()) {
+                        updatePendingMessage(pendingMessageId, collected.toString())
+                    }
                 }
                 collected.toString()
             }

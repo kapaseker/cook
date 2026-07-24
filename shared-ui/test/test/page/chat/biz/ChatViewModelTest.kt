@@ -241,6 +241,36 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `blank stream chunks keep the thinking message until visible content arrives`() = runBlocking {
+        val blankChunksEmitted = CompletableDeferred<Unit>()
+        val releaseAnswer = CompletableDeferred<Unit>()
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(
+            response = flow {
+                emit("")
+                emit("\n")
+                blankChunksEmitted.complete(Unit)
+                releaseAnswer.await()
+                emit("Visible answer")
+            },
+        )
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Wait for visible content")
+        viewModel.sendMessage()
+        withTimeout(1_000) { blankChunksEmitted.await() }
+
+        val pendingMessage = viewModel.conversationUiState.value.messages.last()
+        assertEquals(testChatStrings.thinking, pendingMessage.text)
+        assertTrue(pendingMessage.isPending)
+
+        releaseAnswer.complete(Unit)
+        withTimeout(1_000) { history.saveCompleted.await() }
+        assertEquals("\nVisible answer", history.savedTurns.single().assistantContent)
+    }
+
+    @Test
     fun `empty response removes the pending agent message and reports the composer error`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
         val viewModel = ChatViewModel(

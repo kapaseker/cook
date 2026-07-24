@@ -9,12 +9,12 @@ import kotlin.test.assertNull
 
 class CookRepositoryTest {
     @Test
-    fun `OpenRouter model uses the OpenRouter provider and chat API base URL`() {
-        val endpoint = cookModelEndpoint(OpenRouterCookModel)
+    fun `OpenRouter model uses the native OpenRouter provider`() {
+        val model = OpenRouterCookModel.toLLModel()
 
-        assertEquals(LLMProvider.OpenRouter, endpoint.provider)
-        assertEquals("https://openrouter.ai/api/v1/", endpoint.baseUrl)
-        assertEquals("openai/gpt-oss-20b:free", OpenRouterCookModel.id)
+        assertEquals(LLMProvider.OpenRouter, model.provider)
+        assertEquals("openrouter/free", model.id)
+        assertEquals("OpenRouter Free", OpenRouterCookModel.displayName)
     }
 
     @Test

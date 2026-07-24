@@ -6,6 +6,7 @@ import agent.DictionaryClient
 import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
+import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMCapability
@@ -81,28 +82,28 @@ CRITICAL OUTPUT RULES (these override everything else):
 * Every response must be entirely in English, even when the user writes in Chinese. Never output Chinese text or a Chinese-language explanation.
 """
 
-internal data class CookModelEndpoint(
-    val provider: LLMProvider,
-    val baseUrl: String,
-)
-
-internal fun cookModelEndpoint(model: CookModel): CookModelEndpoint = when (model.id) {
-    GlmCookModel.id -> CookModelEndpoint(
-        provider = LLMProvider.ZhipuAI,
-        baseUrl = "https://open.bigmodel.cn/api/paas/v4/",
-    )
-    OpenRouterCookModel.id -> CookModelEndpoint(
-        provider = LLMProvider.OpenRouter,
-        baseUrl = "https://openrouter.ai/api/v1/",
-    )
-    else -> error("Unsupported Cook model: ${model.id}")
-}
+private const val GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/"
 
 internal fun apiKeyEnvironmentVariable(model: CookModel): String = when (model.id) {
     GlmCookModel.id -> "GLM_API_KEY"
     OpenRouterCookModel.id -> "OPENROUTER_API_KEY"
     else -> error("Unsupported Cook model: ${model.id}")
 }
+
+internal fun CookModel.toLLModel(): LLModel = LLModel(
+    provider = when (id) {
+        GlmCookModel.id -> LLMProvider.ZhipuAI
+        OpenRouterCookModel.id -> LLMProvider.OpenRouter
+        else -> error("Unsupported Cook model: $id")
+    },
+    id = id,
+    capabilities = listOf(
+        LLMCapability.Completion,
+        LLMCapability.Temperature,
+        LLMCapability.Tools,
+        LLMCapability.OpenAIEndpoint.Completions,
+    ),
+)
 
 internal class CookRepository(
     private val dictionaryClient: DictionaryClient,
@@ -119,43 +120,23 @@ internal class CookRepository(
         }
     }
 
-    private val glmModel: LLModel = LLModel(
-        provider = LLMProvider.ZhipuAI,
-        id = GlmCookModel.id,
-        capabilities = listOf(
-            LLMCapability.Completion,
-            LLMCapability.Temperature,
-            LLMCapability.Tools,
-            LLMCapability.OpenAIEndpoint.Completions,
-        ),
-    )
-
-    private val openRouterModel: LLModel = LLModel(
-        provider = LLMProvider.OpenRouter,
-        id = OpenRouterCookModel.id,
-        capabilities = listOf(
-            LLMCapability.Completion,
-            LLMCapability.Temperature,
-            LLMCapability.Tools,
-            LLMCapability.OpenAIEndpoint.Completions,
-        ),
-    )
-
     private val glmAgent by lazy {
-        val endpoint = cookModelEndpoint(GlmCookModel)
         createAgent(
-            model = GlmCookModel,
-            llmModel = glmModel,
-            endpoint = endpoint,
+            llmModel = GlmCookModel.toLLModel(),
+            promptExecutor = createGlmPromptExecutor(apiKey(GlmCookModel)),
         )
     }
 
     private val openRouterAgent by lazy {
-        val endpoint = cookModelEndpoint(OpenRouterCookModel)
         createAgent(
-            model = OpenRouterCookModel,
-            llmModel = openRouterModel,
-            endpoint = endpoint,
+            llmModel = OpenRouterCookModel.toLLModel(),
+            promptExecutor = MultiLLMPromptExecutor(
+                mapOf(
+                    LLMProvider.OpenRouter to OpenRouterLLMClient(
+                        apiKey = apiKey(OpenRouterCookModel),
+                    ),
+                ),
+            ),
         )
     }
 
@@ -186,10 +167,18 @@ internal class CookRepository(
     }
 
     private fun createAgent(
-        model: CookModel,
         llmModel: LLModel,
-        endpoint: CookModelEndpoint,
+        promptExecutor: PromptExecutor,
     ): CookAgent {
+        return CookAgent(
+            promptExecutor = promptExecutor,
+            model = llmModel,
+            systemPrompt = SYSTEM_PROMPT,
+            dictionaryClient = dictionaryClient,
+        )
+    }
+
+    private fun apiKey(model: CookModel): String {
         val environmentVariable = apiKeyEnvironmentVariable(model)
         val apiKey = environment(environmentVariable)
         if (apiKey.isNullOrBlank()) {
@@ -197,22 +186,20 @@ internal class CookRepository(
                 CookStartupIssue.MissingApiKey(environmentVariable),
             )
         }
-        val client = OpenAILLMClient(
+        return apiKey
+    }
+
+    private fun createGlmPromptExecutor(apiKey: String): PromptExecutor {
+        val glmClient = OpenAILLMClient(
             apiKey = apiKey,
             settings = OpenAIClientSettings(
-                baseUrl = endpoint.baseUrl,
+                baseUrl = GLM_BASE_URL,
                 chatCompletionsPath = "chat/completions",
             ),
             httpClientFactory = KtorKoogHttpClient.Factory(),
         )
-        val promptExecutor: PromptExecutor = MultiLLMPromptExecutor(
-            mapOf(endpoint.provider to client),
-        )
-        return CookAgent(
-            promptExecutor = promptExecutor,
-            model = llmModel,
-            systemPrompt = SYSTEM_PROMPT,
-            dictionaryClient = dictionaryClient,
+        return MultiLLMPromptExecutor(
+            mapOf(LLMProvider.ZhipuAI to glmClient),
         )
     }
 }
