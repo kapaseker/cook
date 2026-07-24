@@ -144,7 +144,7 @@ internal class CookRepository(
     override fun sendMessage(
         model: CookModel,
         conversation: List<CookConversationMessage>,
-    ): Flow<String> {
+    ): Flow<CookResponseEvent> {
         val canonicalModel = findCookModelById(model.id)
             ?: error("Unsupported Cook model: ${model.id}")
         startupIssue(canonicalModel)?.let { issue -> throw CookStartupException(issue) }

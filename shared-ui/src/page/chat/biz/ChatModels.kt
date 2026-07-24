@@ -10,6 +10,24 @@ data class ChatMessage(
     val author: MessageAuthor,
     val text: String,
     val isPending: Boolean = false,
+    val agentStatus: AgentStatus? = null,
+    val isAgentStatusVisible: Boolean = false,
+)
+
+/** A transient, event-driven phase for the active agent message. */
+sealed interface AgentStatus {
+    data object Thinking : AgentStatus
+    data object Preparing : AgentStatus
+    data class UsingTool(val name: String) : AgentStatus
+    data object Responding : AgentStatus
+    data object Done : AgentStatus
+    data object Failed : AgentStatus
+}
+
+internal const val AgentStatusFadeDurationMillis = 1_000
+
+data class ChatTerminalStatusTiming(
+    val holdMillis: Long = 2_000,
 )
 
 /** State rendered by the chat header and conversation list. */

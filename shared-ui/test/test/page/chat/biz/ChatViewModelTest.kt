@@ -5,6 +5,7 @@ import repository.agent.CookConversationMessage
 import repository.agent.CookMessageRole
 import repository.agent.CookModel
 import repository.agent.CookRepo
+import repository.agent.CookResponseEvent
 import repository.agent.CookStartupIssue
 import repository.agent.GlmCookModel
 import repository.agent.OpenRouterCookModel
@@ -22,6 +23,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ChatViewModelTest {
@@ -96,7 +98,7 @@ class ChatViewModelTest {
     @Test
     fun `persists a completed response and uses only successful turns as context`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
-        val cook = FakeCookRepo(response = flowOf("A saved answer"))
+        val cook = FakeCookRepo(response = textResponse("A saved answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
         withTimeout(1_000) { history.loadCompleted.await() }
 
@@ -118,7 +120,7 @@ class ChatViewModelTest {
     @Test
     fun `removes every empty line before sending`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
-        val cook = FakeCookRepo(response = flowOf("A saved answer"))
+        val cook = FakeCookRepo(response = textResponse("A saved answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
         withTimeout(1_000) { history.loadCompleted.await() }
 
@@ -135,7 +137,7 @@ class ChatViewModelTest {
     @Test
     fun `selected model is used for the request and persisted with the completed turn`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
-        val cook = FakeCookRepo(response = flowOf("OpenRouter answer"))
+        val cook = FakeCookRepo(response = textResponse("OpenRouter answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
         withTimeout(1_000) { history.loadCompleted.await() }
 
@@ -153,9 +155,9 @@ class ChatViewModelTest {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(
             response = flow {
-                emit("GLM ")
+                emit(CookResponseEvent.TextDelta("GLM "))
                 releaseResponse.await()
-                emit("answer")
+                emit(CookResponseEvent.TextDelta("answer"))
             },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
@@ -210,11 +212,11 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `failed response removes partial agent output and remains available to draft history`() = runBlocking {
+    fun `failed response retains partial agent output and marks it failed`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(
             response = flow {
-                emit("Partial answer")
+                emit(CookResponseEvent.TextDelta("Partial answer"))
                 throw IllegalStateException("Connection unavailable")
             },
         )
@@ -229,10 +231,12 @@ class ChatViewModelTest {
 
         assertTrue(history.savedTurns.isEmpty())
         assertEquals(
-            listOf(MessageAuthor.Agent, MessageAuthor.User),
+            listOf(MessageAuthor.Agent, MessageAuthor.User, MessageAuthor.Agent),
             viewModel.conversationUiState.value.messages.map(ChatMessage::author),
         )
-        assertEquals("Do not save this", viewModel.conversationUiState.value.messages.last().text)
+        val failedMessage = viewModel.conversationUiState.value.messages.last()
+        assertEquals("Partial answer", failedMessage.text)
+        assertEquals(AgentStatus.Failed, failedMessage.agentStatus)
         assertEquals("Connection unavailable", viewModel.requestUiState.value.errorMessage)
 
         assertTrue(viewModel.navigateDraftHistory(ChatDraftHistoryDirection.Previous))
@@ -241,17 +245,16 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `blank stream chunks keep the thinking message until visible content arrives`() = runBlocking {
+    fun `preparing events show status without visible response content`() = runBlocking {
         val blankChunksEmitted = CompletableDeferred<Unit>()
         val releaseAnswer = CompletableDeferred<Unit>()
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(
             response = flow {
-                emit("")
-                emit("\n")
+                emit(CookResponseEvent.Preparing)
                 blankChunksEmitted.complete(Unit)
                 releaseAnswer.await()
-                emit("Visible answer")
+                emit(CookResponseEvent.TextDelta("\nVisible answer"))
             },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
@@ -262,8 +265,9 @@ class ChatViewModelTest {
         withTimeout(1_000) { blankChunksEmitted.await() }
 
         val pendingMessage = viewModel.conversationUiState.value.messages.last()
-        assertEquals(testChatStrings.thinking, pendingMessage.text)
+        assertEquals("", pendingMessage.text)
         assertTrue(pendingMessage.isPending)
+        assertEquals(AgentStatus.Preparing, pendingMessage.agentStatus)
 
         releaseAnswer.complete(Unit)
         withTimeout(1_000) { history.saveCompleted.await() }
@@ -271,7 +275,134 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun `empty response removes the pending agent message and reports the composer error`() = runBlocking {
+    fun `agent status follows preparing tool and responding events`() = runBlocking {
+        val preparingEmitted = CompletableDeferred<Unit>()
+        val releaseTool = CompletableDeferred<Unit>()
+        val toolStarted = CompletableDeferred<Unit>()
+        val releaseToolFinished = CompletableDeferred<Unit>()
+        val toolFinished = CompletableDeferred<Unit>()
+        val releaseText = CompletableDeferred<Unit>()
+        val textEmitted = CompletableDeferred<Unit>()
+        val releaseCompletion = CompletableDeferred<Unit>()
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(
+            response = flow {
+                emit(CookResponseEvent.Preparing)
+                preparingEmitted.complete(Unit)
+                releaseTool.await()
+                emit(CookResponseEvent.ToolStarted("lookup_english_word"))
+                toolStarted.complete(Unit)
+                releaseToolFinished.await()
+                emit(CookResponseEvent.ToolFinished("lookup_english_word"))
+                toolFinished.complete(Unit)
+                releaseText.await()
+                emit(CookResponseEvent.TextDelta("Definition"))
+                textEmitted.complete(Unit)
+                releaseCompletion.await()
+            },
+        )
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Define a word")
+        viewModel.sendMessage()
+        withTimeout(1_000) { preparingEmitted.await() }
+        assertEquals(AgentStatus.Preparing, viewModel.conversationUiState.value.messages.last().agentStatus)
+
+        releaseTool.complete(Unit)
+        withTimeout(1_000) { toolStarted.await() }
+        assertEquals(
+            AgentStatus.UsingTool("lookup_english_word"),
+            viewModel.conversationUiState.value.messages.last().agentStatus,
+        )
+
+        releaseToolFinished.complete(Unit)
+        withTimeout(1_000) { toolFinished.await() }
+        assertEquals(AgentStatus.Preparing, viewModel.conversationUiState.value.messages.last().agentStatus)
+
+        releaseText.complete(Unit)
+        withTimeout(1_000) { textEmitted.await() }
+        assertEquals(AgentStatus.Responding, viewModel.conversationUiState.value.messages.last().agentStatus)
+        assertEquals("Definition", viewModel.conversationUiState.value.messages.last().text)
+
+        releaseCompletion.complete(Unit)
+        withTimeout(1_000) { viewModel.requestUiState.first { state -> !state.isSending } }
+        assertEquals(AgentStatus.Done, viewModel.conversationUiState.value.messages.last().agentStatus)
+    }
+
+    @Test
+    fun `done is visible before conversation persistence completes`() = runBlocking {
+        val history = BlockingSaveConversationHistoryRepo()
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(response = textResponse("Complete answer")),
+            historyRepository = history,
+            strings = testChatStrings,
+        )
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Complete this")
+        viewModel.sendMessage()
+        withTimeout(1_000) { history.saveStarted.await() }
+
+        assertFalse(viewModel.requestUiState.value.isSending)
+        assertEquals(AgentStatus.Done, viewModel.conversationUiState.value.messages.last().agentStatus)
+
+        history.releaseSave.complete(Unit)
+        Unit
+    }
+
+    @Test
+    fun `clearing history waits for an active save and deletes the saved conversation`() = runBlocking {
+        val history = BlockingSaveConversationHistoryRepo()
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(response = textResponse("Saved before clear")),
+            historyRepository = history,
+            strings = testChatStrings,
+        )
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("Clear this turn")
+        viewModel.sendMessage()
+        withTimeout(1_000) { history.saveStarted.await() }
+        viewModel.requestClearHistory()
+        assertTrue(viewModel.historyUiState.value.isClearConfirmationVisible)
+        viewModel.confirmClearHistory()
+        assertTrue(viewModel.historyUiState.value.isClearing)
+
+        history.releaseSave.complete(Unit)
+        withTimeout(1_000) { viewModel.historyUiState.first { state -> !state.isClearing } }
+
+        assertEquals(listOf(1L), history.deletedConversationIds)
+        assertEquals(1, viewModel.conversationUiState.value.messages.size)
+    }
+
+    @Test
+    fun `overlapping responses serialize pending conversation persistence`() = runBlocking {
+        val history = SequencedSaveConversationHistoryRepo()
+        val cook = FakeCookRepo(response = textResponse("First answer"))
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("First question")
+        viewModel.sendMessage()
+        withTimeout(1_000) { history.firstSaveStarted.await() }
+
+        cook.response = textResponse("Second answer")
+        viewModel.onDraftChanged("Second question")
+        viewModel.sendMessage()
+        withTimeout(1_000) { viewModel.requestUiState.first { state -> !state.isSending } }
+        assertEquals(1, history.savedBatches.size)
+
+        history.releaseFirstSave.complete(Unit)
+        withTimeout(1_000) { history.secondSaveCompleted.await() }
+        assertEquals(
+            listOf(listOf("First question"), listOf("Second question")),
+            history.savedBatches.map { batch -> batch.map(ConversationHistoryTurn::userContent) },
+        )
+    }
+
+    @Test
+    fun `empty response marks the status-only agent message failed`() = runBlocking {
         val history = RecordingConversationHistoryRepo()
         val viewModel = ChatViewModel(
             cookRepository = FakeCookRepo(response = emptyFlow()),
@@ -288,10 +419,74 @@ class ChatViewModelTest {
 
         assertEquals(testChatStrings.emptyResponse, viewModel.requestUiState.value.errorMessage)
         assertEquals(
+            listOf(MessageAuthor.Agent, MessageAuthor.User, MessageAuthor.Agent),
+            viewModel.conversationUiState.value.messages.map(ChatMessage::author),
+        )
+        assertEquals(AgentStatus.Failed, viewModel.conversationUiState.value.messages.last().agentStatus)
+        assertEquals("", viewModel.conversationUiState.value.messages.last().text)
+        assertTrue(history.savedTurns.isEmpty())
+    }
+
+    @Test
+    fun `status-only failed message is removed after its terminal animation window`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(response = emptyFlow()),
+            historyRepository = history,
+            strings = testChatStrings,
+            terminalStatusTiming = ChatTerminalStatusTiming(holdMillis = 1),
+        )
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("No answer")
+        viewModel.sendMessage()
+        withTimeout(1_000) {
+            viewModel.requestUiState.first { state -> !state.isSending && state.errorMessage.isNotEmpty() }
+        }
+        withTimeout(1_000) {
+            viewModel.conversationUiState.first { state ->
+                state.messages.last().agentStatus == AgentStatus.Failed &&
+                    !state.messages.last().isAgentStatusVisible
+            }
+        }
+        assertEquals(3, viewModel.conversationUiState.value.messages.size)
+        withTimeout(2_000) {
+            viewModel.conversationUiState.first { state -> state.messages.size == 2 }
+        }
+
+        assertEquals(
             listOf(MessageAuthor.Agent, MessageAuthor.User),
             viewModel.conversationUiState.value.messages.map(ChatMessage::author),
         )
-        assertTrue(history.savedTurns.isEmpty())
+    }
+
+    @Test
+    fun `new request immediately clears the previous terminal status`() = runBlocking {
+        val history = RecordingConversationHistoryRepo()
+        val cook = FakeCookRepo(response = textResponse("First answer"))
+        val releaseSecondResponse = CompletableDeferred<Unit>()
+        val viewModel = ChatViewModel(cook, history, testChatStrings)
+        withTimeout(1_000) { history.loadCompleted.await() }
+
+        viewModel.onDraftChanged("First question")
+        viewModel.sendMessage()
+        withTimeout(1_000) { history.saveCompleted.await() }
+        assertEquals(AgentStatus.Done, viewModel.conversationUiState.value.messages.last().agentStatus)
+
+        cook.response = flow {
+            emit(CookResponseEvent.Preparing)
+            releaseSecondResponse.await()
+            emit(CookResponseEvent.TextDelta("Second answer"))
+        }
+        viewModel.onDraftChanged("Second question")
+        viewModel.sendMessage()
+
+        val agentMessages = viewModel.conversationUiState.value.messages.filter {
+            it.author == MessageAuthor.Agent
+        }
+        assertNull(agentMessages[1].agentStatus)
+        releaseSecondResponse.complete(Unit)
+        Unit
     }
 
     @Test
@@ -307,7 +502,7 @@ class ChatViewModelTest {
         viewModel.sendMessage()
         withTimeout(1_000) { viewModel.requestUiState.first { state -> !state.isSending } }
 
-        cook.response = flowOf("Successful answer")
+        cook.response = textResponse("Successful answer")
         viewModel.onDraftChanged("Successful question")
         viewModel.sendMessage()
         withTimeout(1_000) { history.saveCompleted.await() }
@@ -382,7 +577,7 @@ class ChatViewModelTest {
 private class FakeCookRepo(
     private val startupIssue: CookStartupIssue? = null,
     private val startupIssues: Map<String, CookStartupIssue> = emptyMap(),
-    var response: Flow<String> = emptyFlow(),
+    var response: Flow<CookResponseEvent> = emptyFlow(),
 ) : CookRepo {
     var lastModel: CookModel? = null
     var lastConversation: List<CookConversationMessage> = emptyList()
@@ -395,13 +590,16 @@ private class FakeCookRepo(
     override fun sendMessage(
         model: CookModel,
         conversation: List<CookConversationMessage>,
-    ): Flow<String> {
+    ): Flow<CookResponseEvent> {
         lastModel = model
         lastConversation = conversation
         requestStarted.complete(Unit)
         return response
     }
 }
+
+private fun textResponse(vararg chunks: String): Flow<CookResponseEvent> =
+    flowOf(*chunks.map(CookResponseEvent::TextDelta).toTypedArray())
 
 private open class FakeConversationHistoryRepo(
     private val initialHistory: ConversationHistory? = null,
@@ -440,6 +638,58 @@ private class RecordingConversationHistoryRepo : FakeConversationHistoryRepo() {
     ): Long {
         savedTurns += turns
         saveCompleted.complete(Unit)
+        return conversationId ?: 1L
+    }
+}
+
+private class BlockingSaveConversationHistoryRepo : FakeConversationHistoryRepo() {
+    val loadCompleted = CompletableDeferred<Unit>()
+    val saveStarted = CompletableDeferred<Unit>()
+    val releaseSave = CompletableDeferred<Unit>()
+    val deletedConversationIds = mutableListOf<Long>()
+
+    override suspend fun loadLatestConversation(): ConversationHistory? {
+        loadCompleted.complete(Unit)
+        return null
+    }
+
+    override suspend fun saveSuccessfulTurns(
+        conversationId: Long?,
+        turns: List<ConversationHistoryTurn>,
+    ): Long {
+        saveStarted.complete(Unit)
+        releaseSave.await()
+        return conversationId ?: 1L
+    }
+
+    override suspend fun deleteConversation(conversationId: Long) {
+        deletedConversationIds += conversationId
+    }
+}
+
+private class SequencedSaveConversationHistoryRepo : FakeConversationHistoryRepo() {
+    val loadCompleted = CompletableDeferred<Unit>()
+    val firstSaveStarted = CompletableDeferred<Unit>()
+    val releaseFirstSave = CompletableDeferred<Unit>()
+    val secondSaveCompleted = CompletableDeferred<Unit>()
+    val savedBatches = mutableListOf<List<ConversationHistoryTurn>>()
+
+    override suspend fun loadLatestConversation(): ConversationHistory? {
+        loadCompleted.complete(Unit)
+        return null
+    }
+
+    override suspend fun saveSuccessfulTurns(
+        conversationId: Long?,
+        turns: List<ConversationHistoryTurn>,
+    ): Long {
+        savedBatches += turns
+        if (savedBatches.size == 1) {
+            firstSaveStarted.complete(Unit)
+            releaseFirstSave.await()
+        } else {
+            secondSaveCompleted.complete(Unit)
+        }
         return conversationId ?: 1L
     }
 }

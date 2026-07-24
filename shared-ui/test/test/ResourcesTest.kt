@@ -4,7 +4,9 @@ import cook.generated.resources.Res
 import cook.generated.resources.agent_request_failed
 import cook.generated.resources.app_name
 import cook.generated.resources.could_not_answer
+import cook.generated.resources.done
 import cook.generated.resources.empty_response
+import cook.generated.resources.failed
 import cook.generated.resources.history_clear_failed
 import cook.generated.resources.history_load_failed
 import cook.generated.resources.history_save_failed
@@ -12,12 +14,15 @@ import cook.generated.resources.missing_api_key
 import cook.generated.resources.model
 import cook.generated.resources.model_save_failed
 import cook.generated.resources.powered_by_model
+import cook.generated.resources.preparing
+import cook.generated.resources.responding
 import cook.generated.resources.send
 import cook.generated.resources.sending
 import cook.generated.resources.settings
 import cook.generated.resources.shortcut_hints
 import cook.generated.resources.text_scale
 import cook.generated.resources.thinking
+import cook.generated.resources.using_tool
 import cook.generated.resources.unsupported_platform
 import cook.generated.resources.user_label
 import cook.generated.resources.welcome_message
@@ -53,6 +58,11 @@ class ResourcesTest {
         assertEquals("Couldn't save model selection.", getString(Res.string.model_save_failed))
         assertEquals("Text scale", getString(Res.string.text_scale))
         assertEquals("Thinking...", getString(Res.string.thinking))
+        assertEquals("Preparing...", getString(Res.string.preparing))
+        assertEquals("Using lookup_english_word...", getString(Res.string.using_tool, "lookup_english_word"))
+        assertEquals("Responding...", getString(Res.string.responding))
+        assertEquals("Done", getString(Res.string.done))
+        assertEquals("Failed", getString(Res.string.failed))
         assertEquals(
             "The agent returned an empty response.",
             getString(Res.string.empty_response),

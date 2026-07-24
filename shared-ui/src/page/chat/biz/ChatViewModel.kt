@@ -3,28 +3,35 @@ package page.chat.biz
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import page.chat.ChatStrings
 import page.chat.missingApiKey
 import repository.agent.CookConversationMessage
 import repository.agent.CookMessageRole
 import repository.agent.CookModel
 import repository.agent.CookRepo
+import repository.agent.CookResponseEvent
 import repository.agent.CookStartupException
 import repository.agent.CookStartupIssue
 import repository.agent.GlmCookModel
 import repository.history.ConversationHistoryRepo
 import repository.history.ConversationHistoryTurn
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class ChatViewModel(
     private val cookRepository: CookRepo,
     private val historyRepository: ConversationHistoryRepo,
     private val strings: ChatStrings,
     initialModel: CookModel = GlmCookModel,
+    private val terminalStatusTiming: ChatTerminalStatusTiming = ChatTerminalStatusTiming(),
 ) : ViewModel() {
 
     private var nextMessageId = 0L
@@ -32,9 +39,11 @@ class ChatViewModel(
     private var currentConversationId: Long? = null
     private val successfulTurns = mutableListOf<ConversationHistoryTurn>()
     private val sentUserMessages = mutableListOf<String>()
-    private val pendingPersistenceTurns = mutableListOf<ConversationHistoryTurn>()
+    private val pendingPersistenceTurns = ConcurrentLinkedQueue<ConversationHistoryTurn>()
     private var draftHistoryIndex: Int? = null
     private var draftBeforeHistoryNavigation: String? = null
+    private var terminalStatusJob: Job? = null
+    private val persistenceMutex = Mutex()
 
     private val _conversationUiState = MutableStateFlow(
         ChatConversationUiState(messages = listOf(initialAgentMessage())),
@@ -123,6 +132,7 @@ class ChatViewModel(
             return
         }
 
+        clearTerminalStatus()
         val pendingMessageId = nextId()
         _conversationUiState.update { state ->
             state.copy(
@@ -133,8 +143,10 @@ class ChatViewModel(
                 ) + ChatMessage(
                     id = pendingMessageId,
                     author = MessageAuthor.Agent,
-                    text = strings.thinking,
+                    text = "",
                     isPending = true,
+                    agentStatus = AgentStatus.Thinking,
+                    isAgentStatusVisible = true,
                 ),
             )
         }
@@ -144,20 +156,44 @@ class ChatViewModel(
         _requestUiState.update { ChatRequestUiState(isSending = true) }
 
         viewModelScope.launch(Dispatchers.Default) {
+            val collected = StringBuilder()
             val result = runCatching {
-                val collected = StringBuilder()
-                cookRepository.sendMessage(model, modelConversation(question)).collect { chunk ->
-                    collected.append(chunk)
-                    if (collected.isNotBlank()) {
-                        updatePendingMessage(pendingMessageId, collected.toString())
+                cookRepository.sendMessage(model, modelConversation(question)).collect { event ->
+                    when (event) {
+                        CookResponseEvent.Preparing -> updateAgentStatus(
+                            pendingMessageId,
+                            AgentStatus.Preparing,
+                        )
+                        is CookResponseEvent.TextDelta -> {
+                            collected.append(event.text)
+                            if (collected.isNotBlank()) {
+                                updatePendingMessage(
+                                    id = pendingMessageId,
+                                    text = collected.toString(),
+                                    status = AgentStatus.Responding,
+                                )
+                            }
+                        }
+                        is CookResponseEvent.ToolStarted -> updateAgentStatus(
+                            pendingMessageId,
+                            AgentStatus.UsingTool(event.name),
+                        )
+                        is CookResponseEvent.ToolFinished -> updateAgentStatus(
+                            pendingMessageId,
+                            AgentStatus.Preparing,
+                        )
                     }
                 }
-                collected.toString()
             }
-            val answer = result.getOrNull()?.takeIf(String::isNotBlank)
+            val answer = collected.toString().takeIf(String::isNotBlank)
 
-            if (answer != null) {
-                updatePendingMessage(pendingMessageId, answer, isPending = false)
+            if (result.isSuccess && answer != null) {
+                updatePendingMessage(
+                    id = pendingMessageId,
+                    text = answer,
+                    isPending = false,
+                    status = AgentStatus.Done,
+                )
                 val turn = ConversationHistoryTurn(
                     sequence = successfulTurns.size.toLong(),
                     userContent = question,
@@ -167,15 +203,22 @@ class ChatViewModel(
                 )
                 successfulTurns += turn
                 pendingPersistenceTurns += turn
-                persistPendingTurns()
+                scheduleTerminalStatusCleanup(pendingMessageId)
                 _requestUiState.update { ChatRequestUiState(isSending = false) }
+                persistPendingTurns()
             } else {
                 val requestError = if (result.isSuccess) {
                     strings.emptyResponse
                 } else {
                     result.exceptionOrNull()?.let(::errorMessage) ?: strings.agentRequestFailed
                 }
-                removeMessage(pendingMessageId)
+                updatePendingMessage(
+                    id = pendingMessageId,
+                    text = answer.orEmpty(),
+                    isPending = false,
+                    status = AgentStatus.Failed,
+                )
+                scheduleTerminalStatusCleanup(pendingMessageId)
                 _requestUiState.update {
                     ChatRequestUiState(isSending = false, errorMessage = requestError)
                 }
@@ -210,11 +253,16 @@ class ChatViewModel(
         }
         viewModelScope.launch(Dispatchers.Default) {
             val result = runCatching {
-                currentConversationId?.let { conversationId ->
-                    historyRepository.deleteConversation(conversationId)
+                persistenceMutex.withLock {
+                    currentConversationId?.let { conversationId ->
+                        historyRepository.deleteConversation(conversationId)
+                    }
+                    pendingPersistenceTurns.clear()
                 }
             }
             if (result.isSuccess) {
+                terminalStatusJob?.cancel()
+                terminalStatusJob = null
                 currentConversationId = null
                 successfulTurns.clear()
                 sentUserMessages.clear()
@@ -258,17 +306,19 @@ class ChatViewModel(
     }
 
     private suspend fun persistPendingTurns() {
-        val turns = pendingPersistenceTurns.toList()
-        if (turns.isEmpty()) return
+        persistenceMutex.withLock {
+            val turns = pendingPersistenceTurns.toList()
+            if (turns.isEmpty()) return@withLock
 
-        runCatching {
-            historyRepository.saveSuccessfulTurns(currentConversationId, turns)
-        }.onSuccess { conversationId ->
-            currentConversationId = conversationId
-            pendingPersistenceTurns.removeAll(turns.toSet())
-            _historyUiState.update { state -> state.copy(errorMessage = "") }
-        }.onFailure {
-            _historyUiState.update { state -> state.copy(errorMessage = strings.historySaveFailed) }
+            runCatching {
+                historyRepository.saveSuccessfulTurns(currentConversationId, turns)
+            }.onSuccess { conversationId ->
+                currentConversationId = conversationId
+                pendingPersistenceTurns.removeAll(turns.toSet())
+                _historyUiState.update { state -> state.copy(errorMessage = "") }
+            }.onFailure {
+                _historyUiState.update { state -> state.copy(errorMessage = strings.historySaveFailed) }
+            }
         }
     }
 
@@ -279,20 +329,78 @@ class ChatViewModel(
         )
     } + CookConversationMessage(CookMessageRole.User, question)
 
-    private fun updatePendingMessage(id: Long, text: String, isPending: Boolean = true) {
+    private fun updatePendingMessage(
+        id: Long,
+        text: String,
+        isPending: Boolean = true,
+        status: AgentStatus = AgentStatus.Responding,
+    ) {
         _conversationUiState.update { state ->
             state.copy(
                 messages = state.messages.map { message ->
-                    if (message.id == id) message.copy(text = text, isPending = isPending) else message
+                    if (message.id == id) {
+                        message.copy(
+                            text = text,
+                            isPending = isPending,
+                            agentStatus = status,
+                            isAgentStatusVisible = true,
+                        )
+                    } else {
+                        message
+                    }
                 },
             )
         }
     }
 
-    private fun removeMessage(id: Long) {
+    private fun updateAgentStatus(id: Long, status: AgentStatus) {
         _conversationUiState.update { state ->
-            state.copy(messages = state.messages.filterNot { message -> message.id == id })
+            state.copy(
+                messages = state.messages.map { message ->
+                    if (message.id == id) {
+                        message.copy(agentStatus = status, isAgentStatusVisible = true)
+                    } else {
+                        message
+                    }
+                },
+            )
         }
+    }
+
+    private fun scheduleTerminalStatusCleanup(id: Long) {
+        terminalStatusJob?.cancel()
+        terminalStatusJob = viewModelScope.launch(Dispatchers.Default) {
+            delay(terminalStatusTiming.holdMillis)
+            _conversationUiState.update { state ->
+                state.copy(
+                    messages = state.messages.map { message ->
+                        if (message.id == id) message.copy(isAgentStatusVisible = false) else message
+                    },
+                )
+            }
+            delay(AgentStatusFadeDurationMillis.toLong())
+            clearTerminalStatus(id)
+        }
+    }
+
+    private fun clearTerminalStatus(id: Long? = null) {
+        if (id == null) {
+            terminalStatusJob?.cancel()
+            terminalStatusJob = null
+        }
+        _conversationUiState.update { state ->
+            state.copy(
+                messages = state.messages.mapNotNull { message ->
+                    val isTarget = (id == null || message.id == id) && message.agentStatus.isTerminal
+                    when {
+                        !isTarget -> message
+                        message.text.isBlank() -> null
+                        else -> message.copy(agentStatus = null, isAgentStatusVisible = false)
+                    }
+                },
+            )
+        }
+        if (id != null) terminalStatusJob = null
     }
 
     private fun updateDraftFromHistory(value: String) {
@@ -334,3 +442,6 @@ internal fun removeEmptyLines(draft: String): String = draft.lineSequence()
     .filter(String::isNotBlank)
     .joinToString(separator = "\n")
     .trim()
+
+private val AgentStatus?.isTerminal: Boolean
+    get() = this == AgentStatus.Done || this == AgentStatus.Failed

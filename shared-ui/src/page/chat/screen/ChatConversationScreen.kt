@@ -1,5 +1,8 @@
 package page.chat.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,6 +39,8 @@ import page.chat.biz.ChatDraftUiState
 import page.chat.biz.ChatRequestUiState
 import page.chat.biz.ChatHistoryUiState
 import page.chat.biz.ChatDraftHistoryDirection
+import page.chat.biz.AgentStatus
+import page.chat.biz.AgentStatusFadeDurationMillis
 import page.chat.biz.MessageAuthor
 import page.chat.markdown.AgentMarkdownText
 import kotlin.time.Duration.Companion.milliseconds
@@ -213,41 +218,74 @@ private fun MessageBubble(message: ChatMessage) {
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(CookDimensions.messageLabelSpacing),
         ) {
-            Text(
-                text = stringResource(
-                    if (isUser) Res.string.user_label else Res.string.app_name,
-                ),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Box(
-                modifier = Modifier.clip(CookShapes.messageBubble).background(bubbleColor).padding(
-                    horizontal = CookDimensions.messageBubbleHorizontalPadding,
-                    vertical = CookDimensions.messageBubbleVerticalPadding,
-                ),
-            ) {
-                val contentColor = if (message.isPending) {
-                    textColor.copy(alpha = CookOpacity.pendingMessage)
-                } else {
-                    textColor
-                }
-                SelectionContainer {
-                    if (isUser) {
-                        Text(
-                            text = message.text,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = contentColor,
-                        )
+            MessageLabel(message)
+            if (message.text.isNotBlank()) {
+                Box(
+                    modifier = Modifier.clip(CookShapes.messageBubble).background(bubbleColor).padding(
+                        horizontal = CookDimensions.messageBubbleHorizontalPadding,
+                        vertical = CookDimensions.messageBubbleVerticalPadding,
+                    ),
+                ) {
+                    val contentColor = if (message.isPending) {
+                        textColor.copy(alpha = CookOpacity.pendingMessage)
                     } else {
-                        AgentMarkdownText(
-                            markdown = message.text,
-                            color = contentColor,
-                        )
+                        textColor
+                    }
+                    SelectionContainer {
+                        if (isUser) {
+                            Text(
+                                text = message.text,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = contentColor,
+                            )
+                        } else {
+                            AgentMarkdownText(
+                                markdown = message.text,
+                                color = contentColor,
+                            )
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun MessageLabel(message: ChatMessage) {
+    val isUser = message.author == MessageAuthor.User
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(if (isUser) Res.string.user_label else Res.string.app_name),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val status = message.agentStatus
+        if (!isUser && status != null) {
+            AnimatedVisibility(
+                visible = message.isAgentStatusVisible,
+                exit = fadeOut(animationSpec = tween(AgentStatusFadeDurationMillis)),
+            ) {
+                Text(
+                    text = " · ${agentStatusText(status)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = CookOpacity.agentStatus,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun agentStatusText(status: AgentStatus): String = when (status) {
+    AgentStatus.Thinking -> stringResource(Res.string.thinking)
+    AgentStatus.Preparing -> stringResource(Res.string.preparing)
+    is AgentStatus.UsingTool -> stringResource(Res.string.using_tool, status.name)
+    AgentStatus.Responding -> stringResource(Res.string.responding)
+    AgentStatus.Done -> stringResource(Res.string.done)
+    AgentStatus.Failed -> stringResource(Res.string.failed)
 }
 
 /** Renders the input field and send action. */

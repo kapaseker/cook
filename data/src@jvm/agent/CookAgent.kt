@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import repository.agent.CookResponseEvent
 
 private const val DICTIONARY_TOOL_NAME = "lookup_english_word"
 
@@ -75,7 +76,7 @@ class CookAgent(
      */
     fun sendMessageStream(
         conversation: List<AgentMessage>,
-    ): Flow<String> = flow {
+    ): Flow<CookResponseEvent> = flow {
         val messages = mutableListOf(AgentMessage(role = "system", content = systemPrompt))
         messages += conversation.filter { it.role == "user" || it.role == "assistant" }
         var dictionaryToolAvailable = true
@@ -92,7 +93,10 @@ class CookAgent(
                     when (frame) {
                         is StreamFrame.TextDelta -> {
                             textChunks += frame.text
-                            emit(frame.text)
+                            if (textChunks.none(String::isNotBlank)) {
+                                emit(CookResponseEvent.Preparing)
+                            }
+                            emit(CookResponseEvent.TextDelta(frame.text))
                         }
                         is StreamFrame.ToolCallComplete -> toolCallsThisTurn.add(frame)
                         else -> Unit
@@ -126,11 +130,16 @@ class CookAgent(
                     )
                 }
             } else {
-                messages += executeToolCall(calls.single())
+                val call = calls.single()
+                messages += executeToolCall(
+                    call = call,
+                    onStarted = { emit(CookResponseEvent.ToolStarted(call.name)) },
+                    onFinished = { emit(CookResponseEvent.ToolFinished(call.name)) },
+                )
             }
         }
 
-        emit("I could not complete the dictionary lookup. Please try again.")
+        emit(CookResponseEvent.TextDelta("I could not complete the dictionary lookup. Please try again."))
     }
 
     /**
@@ -170,7 +179,11 @@ class CookAgent(
     }
 
     /** Executes a dictionary tool call and returns its tool-result message. */
-    private suspend fun executeToolCall(call: AgentToolCall): AgentMessage {
+    private suspend fun executeToolCall(
+        call: AgentToolCall,
+        onStarted: suspend () -> Unit,
+        onFinished: suspend () -> Unit,
+    ): AgentMessage {
         if (call.name != DICTIONARY_TOOL_NAME) {
             return toolResultMessage(
                 call = call,
@@ -188,7 +201,12 @@ class CookAgent(
             )
         }
 
-        return toolResultMessage(call, dictionaryClient.lookup(word))
+        onStarted()
+        return try {
+            toolResultMessage(call, dictionaryClient.lookup(word))
+        } finally {
+            onFinished()
+        }
     }
 
     /** Creates a tool-role message from a tool call result. */

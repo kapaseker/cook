@@ -34,7 +34,18 @@ interface CookRepo {
     fun sendMessage(
         model: CookModel,
         conversation: List<CookConversationMessage>,
-    ): Flow<String>
+    ): Flow<CookResponseEvent>
+}
+
+/**
+ * Observable lifecycle events produced while Cook handles one request.
+ * Tool events are sequential; at most one tool is active at a time.
+ */
+sealed interface CookResponseEvent {
+    data object Preparing : CookResponseEvent
+    data class TextDelta(val text: String) : CookResponseEvent
+    data class ToolStarted(val name: String) : CookResponseEvent
+    data class ToolFinished(val name: String) : CookResponseEvent
 }
 
 sealed interface CookStartupIssue {

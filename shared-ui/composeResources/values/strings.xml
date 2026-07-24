@@ -12,6 +12,11 @@
     <string name="send">Send</string>
     <string name="welcome_message">\nHi, I'm Cook. 👋\n\nTalk to me in English or Chinese, and I'll help you improve your English along the way.\n</string>
     <string name="thinking">Thinking...</string>
+    <string name="preparing">Preparing...</string>
+    <string name="using_tool">Using %1$s...</string>
+    <string name="responding">Responding...</string>
+    <string name="done">Done</string>
+    <string name="failed">Failed</string>
     <string name="empty_response">The agent returned an empty response.</string>
     <string name="agent_request_failed">The agent request failed.</string>
     <string name="could_not_answer">I could not answer that request.</string>
