@@ -2,21 +2,27 @@ package page.chat.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +32,9 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import cook.generated.resources.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
@@ -162,33 +171,142 @@ private fun MessageList(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
     val scrollKey = latestMessageScrollKey(messages)
-
-    LaunchedEffect(scrollKey) {
-        if (scrollKey != null) {
-            listState.scrollToItem(messages.size)
+    val latestMessage = messages.lastOrNull()
+    var previousLatestMessageId by remember { mutableStateOf<Long?>(null) }
+    var isFollowingLatest by remember { mutableStateOf(true) }
+    var isProgrammaticScrollInProgress by remember { mutableStateOf(false) }
+    var isScrollbarVisible by remember { mutableStateOf(false) }
+    val showScrollToBottomButton by remember(latestMessage?.id) {
+        derivedStateOf {
+            shouldShowScrollToBottomButton(
+                latestMessageId = latestMessage?.id,
+                visibleItemKeys = listState.layoutInfo.visibleItemsInfo.map { it.key },
+            )
         }
     }
 
-    LazyColumn(
-        modifier = modifier.padding(
-            horizontal = CookDimensions.contentHorizontalPadding,
-            vertical = CookDimensions.contentVerticalPadding,
-        ),
-        state = listState,
-        verticalArrangement = Arrangement.spacedBy(CookDimensions.messageSpacing),
-    ) {
-        items(
-            count = messages.size,
-            key = { index -> messages[index].id },
-        ) { index ->
-            MessageBubble(message = messages[index])
+    LaunchedEffect(listState, latestMessage?.id) {
+        snapshotFlow {
+            listState.isScrollInProgress to shouldShowScrollToBottomButton(
+                latestMessageId = latestMessage?.id,
+                visibleItemKeys = listState.layoutInfo.visibleItemsInfo.map { it.key },
+            )
+        }.collect { (isScrollInProgress, isLatestMessageHidden) ->
+            if (isScrollInProgress && !isProgrammaticScrollInProgress) {
+                isFollowingLatest = !isLatestMessageHidden
+            } else if (!isLatestMessageHidden) {
+                isFollowingLatest = true
+            }
         }
-        item(key = "message-list-end") {
-            Spacer(modifier = Modifier.height(CookDimensions.listEndAnchorHeight))
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.drop(1).collectLatest {
+            if (!listState.canScrollBackward && !listState.canScrollForward) {
+                isScrollbarVisible = false
+                return@collectLatest
+            }
+            isScrollbarVisible = true
+            delay(SCROLLBAR_HIDE_DELAY_MILLIS.milliseconds)
+            isScrollbarVisible = false
+        }
+    }
+
+    LaunchedEffect(scrollKey) {
+        if (
+            scrollKey != null && shouldAutoScrollToLatest(
+                isFollowingLatest = isFollowingLatest,
+                previousLatestMessageId = previousLatestMessageId,
+                latestMessage = latestMessage,
+            )
+        ) {
+            isFollowingLatest = true
+            listState.scrollToItem(messages.size)
+        }
+        previousLatestMessageId = latestMessage?.id
+    }
+
+    Box(modifier = modifier) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(
+                horizontal = CookDimensions.contentHorizontalPadding,
+                vertical = CookDimensions.contentVerticalPadding,
+            ),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(CookDimensions.messageSpacing),
+        ) {
+            items(
+                count = messages.size,
+                key = { index -> messages[index].id },
+            ) { index ->
+                MessageBubble(message = messages[index])
+            }
+            item(key = "message-list-end") {
+                Spacer(modifier = Modifier.height(CookDimensions.listEndAnchorHeight))
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isScrollbarVisible,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            enter = fadeIn(animationSpec = tween(SCROLLBAR_FADE_IN_DURATION_MILLIS)),
+            exit = fadeOut(animationSpec = tween(SCROLLBAR_FADE_OUT_DURATION_MILLIS)),
+        ) {
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(listState),
+                modifier = Modifier.fillMaxHeight(),
+            )
+        }
+
+        if (showScrollToBottomButton) {
+            SmallFloatingActionButton(
+                onClick = {
+                    coroutineScope.launch {
+                        isFollowingLatest = true
+                        isProgrammaticScrollInProgress = true
+                        try {
+                            listState.animateScrollToItem(messages.size)
+                        } finally {
+                            isProgrammaticScrollInProgress = false
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(
+                    horizontal = CookDimensions.contentHorizontalPadding,
+                    vertical = CookDimensions.contentVerticalPadding,
+                ),
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.ic_double_down),
+                    contentDescription = stringResource(Res.string.scroll_to_bottom),
+                )
+            }
         }
     }
 }
+
+/** Returns whether the latest real message is completely outside the viewport. */
+internal fun shouldShowScrollToBottomButton(
+    latestMessageId: Long?,
+    visibleItemKeys: List<Any>,
+): Boolean = latestMessageId != null &&
+    visibleItemKeys.isNotEmpty() &&
+    latestMessageId !in visibleItemKeys
+
+/** Returns whether a message update should move the viewport to the latest message. */
+internal fun shouldAutoScrollToLatest(
+    isFollowingLatest: Boolean,
+    previousLatestMessageId: Long?,
+    latestMessage: ChatMessage?,
+): Boolean = isFollowingLatest || (
+    latestMessage != null &&
+        latestMessage.id != previousLatestMessageId &&
+        latestMessage.author == MessageAuthor.User
+    )
 
 /** Returns a key that changes when the latest message changes. */
 internal fun latestMessageScrollKey(messages: List<ChatMessage>): Pair<Long, String>? =
@@ -400,6 +518,9 @@ private fun MessageComposer(
 }
 
 private const val SHORTCUT_HINT_DURATION_MILLIS = 4_000L
+private const val SCROLLBAR_HIDE_DELAY_MILLIS = 2_000L
+private const val SCROLLBAR_FADE_IN_DURATION_MILLIS = 150
+private const val SCROLLBAR_FADE_OUT_DURATION_MILLIS = 300
 
 /** Returns the next shortcut hint position, wrapping to the first hint when needed. */
 internal fun nextShortcutHintIndex(currentIndex: Int, hintCount: Int): Int =

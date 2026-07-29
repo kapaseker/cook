@@ -52,6 +52,64 @@ class ChatConversationScreenTest {
     }
 
     @Test
+    fun `scroll to bottom button appears only after latest message leaves viewport`() {
+        assertFalse(
+            shouldShowScrollToBottomButton(
+                latestMessageId = 2L,
+                visibleItemKeys = emptyList(),
+            ),
+        )
+        assertFalse(
+            shouldShowScrollToBottomButton(
+                latestMessageId = 2L,
+                visibleItemKeys = listOf(1L, 2L, "message-list-end"),
+            ),
+        )
+        assertTrue(
+            shouldShowScrollToBottomButton(
+                latestMessageId = 2L,
+                visibleItemKeys = listOf(1L),
+            ),
+        )
+    }
+
+    @Test
+    fun `detached viewport ignores streaming updates but follows a newly sent message`() {
+        val streamingAgentMessage = ChatMessage(
+            id = 2L,
+            author = MessageAuthor.Agent,
+            text = "Updated response",
+        )
+        val newlySentMessage = ChatMessage(
+            id = 3L,
+            author = MessageAuthor.User,
+            text = "Next question",
+        )
+
+        assertFalse(
+            shouldAutoScrollToLatest(
+                isFollowingLatest = false,
+                previousLatestMessageId = 2L,
+                latestMessage = streamingAgentMessage,
+            ),
+        )
+        assertTrue(
+            shouldAutoScrollToLatest(
+                isFollowingLatest = false,
+                previousLatestMessageId = 2L,
+                latestMessage = newlySentMessage,
+            ),
+        )
+        assertTrue(
+            shouldAutoScrollToLatest(
+                isFollowingLatest = true,
+                previousLatestMessageId = 2L,
+                latestMessage = streamingAgentMessage,
+            ),
+        )
+    }
+
+    @Test
     fun `history navigation only activates at the relevant multiline boundary`() {
         val middleLine = TextFieldValue("First\nSecond\nThird", selection = TextRange(8))
         val firstLine = TextFieldValue("First\nSecond\nThird", selection = TextRange(2))

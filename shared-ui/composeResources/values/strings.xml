@@ -10,6 +10,7 @@
     </string-array>
     <string name="sending">Sending</string>
     <string name="send">Send</string>
+    <string name="scroll_to_bottom">Scroll to bottom</string>
     <string name="welcome_message">\nHi, I'm Cook. 👋\n\nTalk to me in English or Chinese, and I'll help you improve your English along the way.\n</string>
     <string name="thinking">Thinking...</string>
     <string name="preparing">Preparing...</string>
