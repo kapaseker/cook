@@ -20,6 +20,7 @@ object CookDimensions {
     val composerRowSpacing = 12.dp
     val sendButtonHeight = 56.dp
     val buttonSpacing = 12.dp
+    val chatListWidth = 280.dp
 }
 
 object CookShapes {

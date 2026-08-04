@@ -12,8 +12,12 @@ import repository.agent.OpenRouterCookModel
 import repository.history.ConversationHistory
 import repository.history.ConversationHistoryRepo
 import repository.history.ConversationHistoryTurn
+import repository.history.ConversationSummary
+import repository.history.conversationTitle
+import repository.settings.SettingsStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -27,6 +31,111 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ChatViewModelTest {
+
+    @Test
+    fun `empty selected chat disables creating another chat`() = runBlocking {
+        val history = MultiChatConversationHistoryRepo()
+        val viewModel = ChatViewModel(FakeCookRepo(), history, testChatStrings)
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.isLoaded } }
+
+        val originalId = viewModel.chatListUiState.value.selectedConversationId
+        viewModel.createNewChat()
+
+        assertEquals(1, viewModel.chatListUiState.value.items.size)
+        assertEquals(originalId, viewModel.chatListUiState.value.selectedConversationId)
+    }
+
+    @Test
+    fun `first failed question titles chat and enables creating a new chat`() = runBlocking {
+        val history = MultiChatConversationHistoryRepo()
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(
+                response = flow { throw IllegalStateException("Connection unavailable") },
+            ),
+            historyRepository = history,
+            strings = testChatStrings,
+        )
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.isLoaded } }
+
+        viewModel.onDraftChanged("How do I cook tofu")
+        viewModel.sendMessage()
+        withTimeout(1_000) { viewModel.requestUiState.first { !it.isSending } }
+        assertEquals("How do I", viewModel.chatListUiState.value.selectedItem?.title)
+        assertEquals("How do I cook tofu", viewModel.chatListUiState.value.selectedItem?.preview)
+        viewModel.flushPersistence()
+        assertNull(history.summaries.single().preview)
+
+        viewModel.createNewChat()
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.items.size == 2 } }
+
+        assertNull(viewModel.chatListUiState.value.selectedItem?.title)
+        assertEquals(2, history.summaries.size)
+    }
+
+    @Test
+    fun `chat list visibility is restored and persisted`() = runBlocking {
+        val settings = FakeChatSettingsStore(isChatListVisible = false)
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(),
+            historyRepository = MultiChatConversationHistoryRepo(),
+            strings = testChatStrings,
+            settingsStore = settings,
+        )
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.isLoaded } }
+        assertFalse(viewModel.chatListUiState.value.isVisible)
+
+        viewModel.toggleChatList()
+        viewModel.flushPersistence()
+
+        assertTrue(settings.isChatListVisible.value)
+    }
+
+    @Test
+    fun `switching chats restores each unsent draft`() = runBlocking {
+        val history = MultiChatConversationHistoryRepo(
+            initialSummaries = listOf(
+                summary(id = 2, updatedAt = 2),
+                summary(id = 1, updatedAt = 1),
+            ),
+        )
+        val settings = FakeChatSettingsStore(selectedConversationId = 2)
+        val viewModel = ChatViewModel(
+            cookRepository = FakeCookRepo(),
+            historyRepository = history,
+            strings = testChatStrings,
+            settingsStore = settings,
+        )
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.isLoaded } }
+
+        viewModel.onDraftChanged("Draft for two")
+        viewModel.switchConversation(1)
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.selectedConversationId == 1L } }
+        viewModel.onDraftChanged("Draft for one")
+        viewModel.switchConversation(2)
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.selectedConversationId == 2L } }
+
+        assertEquals("Draft for two", viewModel.draftUiState.value.draft)
+    }
+
+    @Test
+    fun `deleting current chat selects most recent remaining chat`() = runBlocking {
+        val history = MultiChatConversationHistoryRepo(
+            initialSummaries = listOf(
+                summary(id = 3, title = "Current chat", updatedAt = 3),
+                summary(id = 2, title = "Recent chat", updatedAt = 2),
+                summary(id = 1, title = "Older chat", updatedAt = 1),
+            ),
+        )
+        val viewModel = ChatViewModel(FakeCookRepo(), history, testChatStrings)
+        withTimeout(1_000) { viewModel.chatListUiState.first { it.isLoaded } }
+
+        viewModel.requestClearHistory()
+        viewModel.confirmClearHistory()
+        withTimeout(1_000) { viewModel.chatListUiState.first { !it.isMutating } }
+
+        assertEquals(2L, viewModel.chatListUiState.value.selectedConversationId)
+        assertEquals(listOf(2L, 1L), viewModel.chatListUiState.value.items.map { it.id })
+    }
 
     /** Verifies that shows the welcome message when cook starts normally. */
     @Test
@@ -100,7 +209,7 @@ class ChatViewModelTest {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(response = textResponse("A saved answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("A saved question")
         viewModel.sendMessage()
@@ -122,7 +231,7 @@ class ChatViewModelTest {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(response = textResponse("A saved answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("\n\nFirst question\n\n   \nSecond question\n\n")
         viewModel.sendMessage()
@@ -139,7 +248,7 @@ class ChatViewModelTest {
         val history = RecordingConversationHistoryRepo()
         val cook = FakeCookRepo(response = textResponse("OpenRouter answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Use the selected model")
         viewModel.sendMessage(OpenRouterCookModel)
@@ -161,7 +270,7 @@ class ChatViewModelTest {
             },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Keep the original request model")
         viewModel.sendMessage(GlmCookModel)
@@ -181,7 +290,7 @@ class ChatViewModelTest {
             startupIssue = CookStartupIssue.MissingApiKey("OPENROUTER_API_KEY"),
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Keep this draft")
         viewModel.sendMessage(OpenRouterCookModel)
@@ -221,7 +330,7 @@ class ChatViewModelTest {
             },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Do not save this")
         viewModel.sendMessage()
@@ -258,7 +367,7 @@ class ChatViewModelTest {
             },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Wait for visible content")
         viewModel.sendMessage()
@@ -302,7 +411,7 @@ class ChatViewModelTest {
             },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Define a word")
         viewModel.sendMessage()
@@ -338,7 +447,7 @@ class ChatViewModelTest {
             historyRepository = history,
             strings = testChatStrings,
         )
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Complete this")
         viewModel.sendMessage()
@@ -359,7 +468,7 @@ class ChatViewModelTest {
             historyRepository = history,
             strings = testChatStrings,
         )
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Clear this turn")
         viewModel.sendMessage()
@@ -381,7 +490,7 @@ class ChatViewModelTest {
         val history = SequencedSaveConversationHistoryRepo()
         val cook = FakeCookRepo(response = textResponse("First answer"))
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("First question")
         viewModel.sendMessage()
@@ -409,7 +518,7 @@ class ChatViewModelTest {
             historyRepository = history,
             strings = testChatStrings,
         )
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Question with an empty answer")
         viewModel.sendMessage()
@@ -436,7 +545,7 @@ class ChatViewModelTest {
             strings = testChatStrings,
             terminalStatusTiming = ChatTerminalStatusTiming(holdMillis = 1),
         )
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("No answer")
         viewModel.sendMessage()
@@ -466,7 +575,7 @@ class ChatViewModelTest {
         val cook = FakeCookRepo(response = textResponse("First answer"))
         val releaseSecondResponse = CompletableDeferred<Unit>()
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("First question")
         viewModel.sendMessage()
@@ -496,7 +605,7 @@ class ChatViewModelTest {
             response = flow { throw IllegalStateException("Connection unavailable") },
         )
         val viewModel = ChatViewModel(cook, history, testChatStrings)
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Failed question")
         viewModel.sendMessage()
@@ -523,7 +632,7 @@ class ChatViewModelTest {
             historyRepository = history,
             strings = testChatStrings,
         )
-        withTimeout(1_000) { history.loadCompleted.await() }
+        withTimeout(1_000) { viewModel.historyUiState.first { it.isLoaded } }
 
         viewModel.onDraftChanged("Transient failed question")
         viewModel.sendMessage()
@@ -604,6 +713,35 @@ private fun textResponse(vararg chunks: String): Flow<CookResponseEvent> =
 private open class FakeConversationHistoryRepo(
     private val initialHistory: ConversationHistory? = null,
 ) : ConversationHistoryRepo {
+    override suspend fun listConversations(): List<ConversationSummary> =
+        loadLatestConversation()?.let { history ->
+            listOf(
+                summary(
+                    id = history.id,
+                    title = history.turns.firstOrNull()?.userContent?.let(::conversationTitle),
+                    preview = history.turns.lastOrNull()?.assistantContent,
+                    updatedAt = history.turns.lastOrNull()?.completedAtEpochMillis ?: 0,
+                ),
+            )
+        }.orEmpty()
+
+    override suspend fun createConversation(createdAtEpochMillis: Long): ConversationSummary =
+        summary(id = 1, updatedAt = createdAtEpochMillis)
+
+    override suspend fun loadConversation(conversationId: Long): ConversationHistory? =
+        loadLatestConversation()?.takeIf { it.id == conversationId }
+            ?: ConversationHistory(conversationId, emptyList())
+
+    override suspend fun setInitialTitle(
+        conversationId: Long,
+        firstUserMessage: String,
+        updatedAtEpochMillis: Long,
+    ): ConversationSummary = summary(
+        id = conversationId,
+        title = conversationTitle(firstUserMessage),
+        updatedAt = updatedAtEpochMillis,
+    )
+
     override suspend fun loadLatestConversation(): ConversationHistory? = initialHistory
 
     override suspend fun saveSuccessfulTurns(
@@ -694,6 +832,105 @@ private class SequencedSaveConversationHistoryRepo : FakeConversationHistoryRepo
     }
 }
 
+private class MultiChatConversationHistoryRepo(
+    initialSummaries: List<ConversationSummary> = emptyList(),
+) : ConversationHistoryRepo {
+    val summaries = initialSummaries.toMutableList()
+    private val histories = initialSummaries.associate { summary ->
+        summary.id to ConversationHistory(summary.id, emptyList())
+    }.toMutableMap()
+    private var nextId = (initialSummaries.maxOfOrNull(ConversationSummary::id) ?: 0L) + 1L
+
+    override suspend fun listConversations(): List<ConversationSummary> = summaries.sortedWith(
+        compareByDescending<ConversationSummary> { it.updatedAtEpochMillis }
+            .thenByDescending(ConversationSummary::id),
+    )
+
+    override suspend fun createConversation(createdAtEpochMillis: Long): ConversationSummary {
+        val summary = summary(id = nextId++, updatedAt = createdAtEpochMillis)
+        summaries += summary
+        histories[summary.id] = ConversationHistory(summary.id, emptyList())
+        return summary
+    }
+
+    override suspend fun loadConversation(conversationId: Long): ConversationHistory? =
+        histories[conversationId]
+
+    override suspend fun setInitialTitle(
+        conversationId: Long,
+        firstUserMessage: String,
+        updatedAtEpochMillis: Long,
+    ): ConversationSummary {
+        val existing = summaries.single { it.id == conversationId }
+        val updated = existing.copy(
+            title = existing.title ?: conversationTitle(firstUserMessage),
+            updatedAtEpochMillis = updatedAtEpochMillis,
+        )
+        summaries[summaries.indexOfFirst { it.id == conversationId }] = updated
+        return updated
+    }
+
+    override suspend fun loadLatestConversation(): ConversationHistory? =
+        listConversations().firstOrNull()?.let { histories[it.id] }
+
+    override suspend fun saveSuccessfulTurns(
+        conversationId: Long?,
+        turns: List<ConversationHistoryTurn>,
+    ): Long {
+        val id = requireNotNull(conversationId)
+        val previous = histories.getValue(id)
+        histories[id] = previous.copy(turns = previous.turns + turns)
+        val existing = summaries.single { it.id == id }
+        val updated = existing.copy(
+            preview = turns.last().assistantContent,
+            updatedAtEpochMillis = turns.last().completedAtEpochMillis,
+        )
+        summaries[summaries.indexOfFirst { it.id == id }] = updated
+        return id
+    }
+
+    override suspend fun deleteConversation(conversationId: Long) {
+        summaries.removeAll { it.id == conversationId }
+        histories.remove(conversationId)
+    }
+}
+
+private class FakeChatSettingsStore(
+    selectedConversationId: Long? = null,
+    isChatListVisible: Boolean = true,
+) : SettingsStore {
+    override val userTextScale = MutableStateFlow<Float?>(null)
+    override val userUiScale = MutableStateFlow<Float?>(null)
+    override val selectedModelId = MutableStateFlow(GlmCookModel.id)
+    override val isChatListVisible = MutableStateFlow(isChatListVisible)
+    override val selectedConversationId = MutableStateFlow(selectedConversationId)
+
+    override suspend fun setUserTextScale(scale: Float) = Unit
+    override suspend fun clearUserTextScale() = Unit
+    override suspend fun setUserUiScale(scale: Float) = Unit
+    override suspend fun clearUserUiScale() = Unit
+    override suspend fun setSelectedModelId(modelId: String) = Unit
+    override suspend fun setChatListVisible(isVisible: Boolean) {
+        this.isChatListVisible.value = isVisible
+    }
+    override suspend fun setSelectedConversationId(conversationId: Long?) {
+        this.selectedConversationId.value = conversationId
+    }
+}
+
+private fun summary(
+    id: Long,
+    title: String? = null,
+    preview: String? = null,
+    updatedAt: Long,
+) = ConversationSummary(
+    id = id,
+    title = title,
+    preview = preview,
+    createdAtEpochMillis = updatedAt,
+    updatedAtEpochMillis = updatedAt,
+)
+
 private val testChatStrings = ChatStrings(
     welcomeMessage = "\nHi, I'm Cook. 👋\n\n" +
         "Talk to me in English or Chinese, and I'll help you improve your English along the way.\n",
@@ -705,5 +942,5 @@ private val testChatStrings = ChatStrings(
     unsupportedPlatform = "Cook's AI agent is currently available on Desktop only.",
     historyLoadFailed = "Couldn't load conversation history.",
     historySaveFailed = "Couldn't save conversation history.",
-    historyClearFailed = "Couldn't clear conversation history.",
+    historyClearFailed = "Couldn't delete chat.",
 )

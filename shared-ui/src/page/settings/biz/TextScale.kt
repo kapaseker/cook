@@ -1,13 +1,12 @@
 package page.settings.biz
 
+import androidx.compose.ui.unit.Density
 import kotlin.math.roundToInt
-import repository.settings.MaximumTextScale
-import repository.settings.MinimumTextScale
-import repository.settings.TextScaleSliderSteps
-import repository.settings.normalizeTextScale
+import repository.settings.DefaultUiScale
+import repository.settings.normalizeDisplayScale
 
 /** Normalizes the text scale derived from display density. */
-internal fun deviceDefaultTextScale(density: Float): Float = normalizeTextScale(density)
+internal fun deviceDefaultTextScale(density: Float): Float = normalizeDisplayScale(density)
 
 /** Returns the valid user scale or the device-default scale. */
 internal fun selectedTextScale(
@@ -15,24 +14,37 @@ internal fun selectedTextScale(
     userScale: Float?,
 ): Float = userScale
     ?.takeIf { scale -> scale.isFinite() }
-    ?.let(::normalizeTextScale)
+    ?.let(::normalizeDisplayScale)
     ?: deviceDefaultTextScale(density)
 
-/** Calculates the font scale required for the selected text scale. */
-internal fun injectedFontScale(
-    systemFontScale: Float,
-    density: Float,
-    selectedScale: Float,
-): Float {
-    if (!density.isFinite() || density <= 0f) {
-        return systemFontScale
-    }
+/** Returns the valid UI override or the neutral UI scale. */
+internal fun selectedUiScale(userScale: Float?): Float = userScale
+    ?.takeIf { scale -> scale.isFinite() }
+    ?.let(::normalizeDisplayScale)
+    ?: DefaultUiScale
 
-    return systemFontScale * normalizeTextScale(selectedScale) / density
+/** Creates a density that scales DP independently while preserving the selected text size. */
+internal fun scaledDensity(
+    systemDensity: Density,
+    textScale: Float,
+    uiScale: Float,
+): Density {
+    val density = systemDensity.density
+    val normalizedUiScale = normalizeDisplayScale(uiScale)
+    if (!density.isFinite() || density <= 0f) return systemDensity
+
+    return Density(
+        density = density * normalizedUiScale,
+        fontScale = systemDensity.fontScale * normalizeDisplayScale(textScale) /
+            (density * normalizedUiScale),
+    )
+}
+
+/** Formats a normalized display scale with one decimal place. */
+internal fun displayScaleLabel(scale: Float): String {
+    val tenths = (normalizeDisplayScale(scale) * 10).roundToInt()
+    return "${tenths / 10}.${tenths % 10}x"
 }
 
 /** Formats a normalized text scale with one decimal place. */
-internal fun textScaleLabel(scale: Float): String {
-    val tenths = (normalizeTextScale(scale) * 10).roundToInt()
-    return "${tenths / 10}.${tenths % 10}x"
-}
+internal fun textScaleLabel(scale: Float): String = displayScaleLabel(scale)

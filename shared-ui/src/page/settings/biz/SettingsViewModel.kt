@@ -6,91 +6,167 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import repository.settings.SettingsStore
-import repository.settings.normalizeTextScale
 import repository.agent.CookModel
 import repository.agent.AvailableCookModels
 import repository.agent.GlmCookModel
 import repository.agent.cookModelById
+import repository.settings.DefaultUiScale
+import repository.settings.SettingsStore
+import repository.settings.normalizeDisplayScale
 import java.util.concurrent.atomic.AtomicLong
 
-internal data class SettingsUiState(
+internal data class ModelSettingsUiState(
     val isLoaded: Boolean = false,
-    val userScale: Float? = null,
     val availableModels: List<CookModel> = AvailableCookModels,
     val selectedModel: CookModel = GlmCookModel,
     val loadFailed: Boolean = false,
     val saveFailed: Boolean = false,
-    val modelSaveFailed: Boolean = false,
+)
+
+internal data class TextScaleUiState(
+    val isLoaded: Boolean = false,
+    val userScale: Float? = null,
+    val loadFailed: Boolean = false,
+    val saveFailed: Boolean = false,
+)
+
+internal data class UiScaleUiState(
+    val isLoaded: Boolean = false,
+    val userScale: Float? = null,
+    val previewScale: Float = DefaultUiScale,
+    val loadFailed: Boolean = false,
+    val saveFailed: Boolean = false,
 )
 
 internal class SettingsViewModel(
     private val repository: SettingsStore,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(SettingsUiState())
-    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    private val _modelState = MutableStateFlow(ModelSettingsUiState())
+    val modelState: StateFlow<ModelSettingsUiState> = _modelState.asStateFlow()
+    private val _textScaleState = MutableStateFlow(TextScaleUiState())
+    val textScaleState: StateFlow<TextScaleUiState> = _textScaleState.asStateFlow()
+    private val _uiScaleState = MutableStateFlow(UiScaleUiState())
+    val uiScaleState: StateFlow<UiScaleUiState> = _uiScaleState.asStateFlow()
     private val modelSaveMutex = Mutex()
+    private val uiScaleSaveMutex = Mutex()
     private val modelSaveGeneration = AtomicLong()
+    private val uiScaleSaveGeneration = AtomicLong()
 
     init {
         viewModelScope.launch(Dispatchers.Default) {
-            runCatching {
-                repository.userScale.combine(repository.selectedModelId) { userScale, modelId ->
-                    userScale to cookModelById(modelId)
-                }.first()
-            }
-                .onSuccess { (userScale, selectedModel) ->
-                    _uiState.update { state ->
-                        state.copy(
-                            isLoaded = true,
-                            userScale = userScale,
-                            selectedModel = selectedModel,
-                            loadFailed = false,
-                        )
-                    }
+            runCatching { cookModelById(repository.selectedModelId.first()) }
+                .onSuccess { selectedModel ->
+                    _modelState.value = ModelSettingsUiState(
+                        isLoaded = true,
+                        selectedModel = selectedModel,
+                    )
                 }
                 .onFailure {
-                    _uiState.update { state ->
-                        state.copy(isLoaded = true, userScale = null, loadFailed = true)
-                    }
+                    _modelState.value = ModelSettingsUiState(isLoaded = true, loadFailed = true)
+                }
+        }
+        viewModelScope.launch(Dispatchers.Default) {
+            runCatching { repository.userTextScale.first() }
+                .onSuccess { userTextScale ->
+                    _textScaleState.value = TextScaleUiState(
+                        isLoaded = true,
+                        userScale = userTextScale,
+                    )
+                }
+                .onFailure {
+                    _textScaleState.value = TextScaleUiState(isLoaded = true, loadFailed = true)
+                }
+        }
+        viewModelScope.launch(Dispatchers.Default) {
+            runCatching { repository.userUiScale.first() }
+                .onSuccess { userUiScale ->
+                    _uiScaleState.value = UiScaleUiState(
+                        isLoaded = true,
+                        userScale = userUiScale,
+                        previewScale = selectedUiScale(userUiScale),
+                    )
+                }
+                .onFailure {
+                    _uiScaleState.value = UiScaleUiState(isLoaded = true, loadFailed = true)
                 }
         }
     }
 
     /** Updates the in-memory text-scale preview. */
-    fun previewScale(scale: Float) {
-        _uiState.update { state ->
-            state.copy(userScale = normalizeTextScale(scale), saveFailed = false)
+    fun previewTextScale(scale: Float) {
+        _textScaleState.update { state ->
+            state.copy(userScale = normalizeDisplayScale(scale), saveFailed = false)
         }
     }
 
     /** Persists the currently previewed text scale. */
-    fun savePreviewedScale() {
-        val scale = _uiState.value.userScale ?: return
+    fun savePreviewedTextScale() {
+        val scale = _textScaleState.value.userScale ?: return
         viewModelScope.launch(Dispatchers.Default) {
-            runCatching { repository.setUserScale(scale) }
+            runCatching { repository.setUserTextScale(scale) }
                 .onFailure {
-                    _uiState.update { state -> state.copy(saveFailed = true) }
+                    _textScaleState.update { state -> state.copy(saveFailed = true) }
                 }
         }
     }
 
     /** Clears the override and restores the device text scale. */
-    fun resetToDeviceDefault() {
-        _uiState.update { state ->
+    fun resetTextScale() {
+        _textScaleState.update { state ->
             state.copy(userScale = null, saveFailed = false)
         }
         viewModelScope.launch(Dispatchers.Default) {
-            runCatching { repository.clearUserScale() }
+            runCatching { repository.clearUserTextScale() }
                 .onFailure {
-                    _uiState.update { state -> state.copy(saveFailed = true) }
+                    _textScaleState.update { state -> state.copy(saveFailed = true) }
                 }
+        }
+    }
+
+    /** Updates only the focused UI-scale preview until the slider interaction finishes. */
+    fun previewUiScale(scale: Float) {
+        _uiScaleState.update { state ->
+            state.copy(previewScale = normalizeDisplayScale(scale), saveFailed = false)
+        }
+    }
+
+    /** Applies and persists the currently previewed UI scale. */
+    fun applyPreviewedUiScale() {
+        val scale = _uiScaleState.value.previewScale
+        _uiScaleState.update { state -> state.copy(userScale = scale, saveFailed = false) }
+        persistUiScale(scale)
+    }
+
+    /** Restores the neutral UI scale and removes its persisted override. */
+    fun resetUiScale() {
+        _uiScaleState.update { state ->
+            state.copy(userScale = null, previewScale = DefaultUiScale, saveFailed = false)
+        }
+        persistUiScale(null)
+    }
+
+    /** Serializes UI-scale writes and suppresses failures from superseded requests. */
+    private fun persistUiScale(scale: Float?) {
+        val generation = uiScaleSaveGeneration.incrementAndGet()
+        viewModelScope.launch(Dispatchers.Default) {
+            uiScaleSaveMutex.withLock {
+                if (generation != uiScaleSaveGeneration.get()) return@withLock
+                val result = runCatching {
+                    if (scale == null) {
+                        repository.clearUserUiScale()
+                    } else {
+                        repository.setUserUiScale(scale)
+                    }
+                }
+                if (result.isFailure && generation == uiScaleSaveGeneration.get()) {
+                    _uiScaleState.update { state -> state.copy(saveFailed = true) }
+                }
+            }
         }
     }
 
@@ -98,8 +174,8 @@ internal class SettingsViewModel(
     fun selectModel(model: CookModel) {
         val supportedModel = cookModelById(model.id)
         val generation = modelSaveGeneration.incrementAndGet()
-        _uiState.update { state ->
-            state.copy(selectedModel = supportedModel, modelSaveFailed = false)
+        _modelState.update { state ->
+            state.copy(selectedModel = supportedModel, saveFailed = false)
         }
         viewModelScope.launch(Dispatchers.Default) {
             modelSaveMutex.withLock {
@@ -107,7 +183,7 @@ internal class SettingsViewModel(
                 runCatching { repository.setSelectedModelId(supportedModel.id) }
                     .onFailure {
                         if (generation == modelSaveGeneration.get()) {
-                            _uiState.update { state -> state.copy(modelSaveFailed = true) }
+                            _modelState.update { state -> state.copy(saveFailed = true) }
                         }
                     }
                 }

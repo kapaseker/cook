@@ -35,6 +35,26 @@ data class ChatConversationUiState(
     val messages: List<ChatMessage> = emptyList(),
 )
 
+/** Lightweight state for one persisted chat-list row. */
+data class ChatListItemUiState(
+    val id: Long,
+    val title: String?,
+    val preview: String?,
+    val updatedAtEpochMillis: Long,
+)
+
+/** State for chat-list visibility, ordering, and selection. */
+data class ChatListUiState(
+    val isLoaded: Boolean = false,
+    val isVisible: Boolean = true,
+    val items: List<ChatListItemUiState> = emptyList(),
+    val selectedConversationId: Long? = null,
+    val isMutating: Boolean = false,
+) {
+    val selectedItem: ChatListItemUiState?
+        get() = items.firstOrNull { it.id == selectedConversationId }
+}
+
 /** State rendered by the message composer input. */
 data class ChatDraftUiState(
     val draft: String = "",

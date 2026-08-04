@@ -1,10 +1,40 @@
 import androidx.compose.ui.window.WindowPlacement
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import settings.SavedWindowState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class WindowStatePersistenceTest {
+    @Test
+    fun `window close flushes chat then window state before exiting`() = runBlocking {
+        val events = mutableListOf<String>()
+        val exited = CompletableDeferred<Unit>()
+        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val coordinator = WindowCloseCoordinator(
+            coroutineScope = scope,
+            flushChatPersistence = { events += "chat" },
+            flushWindowState = { events += "window" },
+            exitApplication = {
+                events += "exit"
+                exited.complete(Unit)
+            },
+        )
+
+        try {
+            coordinator.close()
+            exited.await()
+            assertEquals(listOf("chat", "window", "exit"), events)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     /** Verifies that initial floating state establishes a baseline without saving. */
     @Test
     fun `initial floating state establishes a baseline without saving`() {

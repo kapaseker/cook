@@ -11,16 +11,18 @@ import di.platformDataModule
 import di.uiModule
 import org.koin.core.context.startKoin
 import org.koin.core.context.GlobalContext
+import page.chat.biz.ChatPersistenceFlushRegistry
 
 /** Starts dependency injection and the Compose Desktop application. */
 fun main() {
     configureUtf8ConsoleOutput()
     startKoin { modules(uiModule, platformDataModule) }
     val windowStateStore = GlobalContext.get().get<WindowStateStore>()
+    val chatFlushRegistry = GlobalContext.get().get<ChatPersistenceFlushRegistry>()
     val initialWindowState = loadInitialWindowState(windowStateStore)
 
     application {
-        CookWindow(initialWindowState, windowStateStore)
+        CookWindow(initialWindowState, windowStateStore, chatFlushRegistry)
     }
 }
 

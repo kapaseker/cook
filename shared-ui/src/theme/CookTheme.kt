@@ -4,26 +4,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
-import page.settings.biz.injectedFontScale
+import page.settings.biz.scaledDensity
 
-/** Applies the Material theme with the selected text-scale density. */
+/** Applies the Material theme with independent text and UI scales. */
 @Composable
 fun CookTheme(
     textScale: Float,
+    uiScale: Float,
     content: @Composable () -> Unit,
 ) {
     val systemDensity = LocalDensity.current
-    val appDensity = Density(
-        density = systemDensity.density,
-        fontScale = injectedFontScale(
-            systemFontScale = systemDensity.fontScale,
-            density = systemDensity.density,
-            selectedScale = textScale,
-        ),
-    )
 
-    CompositionLocalProvider(LocalDensity provides appDensity) {
+    CompositionLocalProvider(
+        LocalDensity provides scaledDensity(systemDensity, textScale, uiScale),
+    ) {
         MaterialTheme(content = content)
     }
 }

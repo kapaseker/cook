@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 import settings.SavedWindowState
 import settings.WindowStateStore
+import page.chat.biz.ChatPersistenceFlushRegistry
 import theme.CookDimensions
 import kotlin.math.roundToInt
 
@@ -35,6 +36,7 @@ private const val WindowSaveDebounceMillis = 500L
 internal fun ApplicationScope.CookWindow(
     initialState: SavedWindowState?,
     store: WindowStateStore,
+    chatFlushRegistry: ChatPersistenceFlushRegistry,
 ) {
     val windowState = rememberWindowState(
         placement = if (initialState?.isMaximized == true) {
@@ -53,8 +55,13 @@ internal fun ApplicationScope.CookWindow(
     val saveCoordinator = remember(store, coroutineScope) {
         WindowStateSaveCoordinator(store, coroutineScope)
     }
-    val closeCoordinator = remember(saveCoordinator, coroutineScope) {
-        WindowCloseCoordinator(coroutineScope, saveCoordinator, ::exitApplication)
+    val closeCoordinator = remember(saveCoordinator, coroutineScope, chatFlushRegistry) {
+        WindowCloseCoordinator(
+            coroutineScope = coroutineScope,
+            flushChatPersistence = chatFlushRegistry::flush,
+            flushWindowState = saveCoordinator::flush,
+            exitApplication = ::exitApplication,
+        )
     }
 
     LaunchedEffect(windowState, accumulator, saveCoordinator) {
@@ -151,9 +158,10 @@ private class WindowStateSaveCoordinator(
     }
 }
 
-private class WindowCloseCoordinator(
+internal class WindowCloseCoordinator(
     private val coroutineScope: CoroutineScope,
-    private val saveCoordinator: WindowStateSaveCoordinator,
+    private val flushChatPersistence: suspend () -> Unit,
+    private val flushWindowState: suspend () -> Unit,
     private val exitApplication: () -> Unit,
 ) {
     private var isClosing = false
@@ -163,7 +171,11 @@ private class WindowCloseCoordinator(
         if (isClosing) return
         isClosing = true
         coroutineScope.launch {
-            saveCoordinator.flush()
+            runCatching { flushChatPersistence() }
+                .onFailure { error ->
+                    System.err.println("Unable to flush chat persistence: ${error.message}")
+                }
+            flushWindowState()
             exitApplication()
         }
     }

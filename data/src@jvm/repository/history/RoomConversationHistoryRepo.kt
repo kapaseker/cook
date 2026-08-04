@@ -7,9 +7,45 @@ import repository.history.ConversationHistoryTurn
 internal class RoomConversationHistoryRepo(
     private val dao: ConversationHistoryDao,
 ) : ConversationHistoryRepo {
+    override suspend fun listConversations(): List<ConversationSummary> =
+        dao.conversationSummaries().map { it.toSummary() }
+
+    override suspend fun createConversation(createdAtEpochMillis: Long): ConversationSummary {
+        val id = dao.insertConversation(
+            ConversationEntity(
+                title = null,
+                created_at = createdAtEpochMillis,
+                updated_at = createdAtEpochMillis,
+            ),
+        )
+        return requireNotNull(summary(id))
+    }
+
+    override suspend fun loadConversation(conversationId: Long): ConversationHistory? {
+        val conversation = dao.conversation(conversationId) ?: return null
+        return conversation.toHistory()
+    }
+
+    override suspend fun setInitialTitle(
+        conversationId: Long,
+        firstUserMessage: String,
+        updatedAtEpochMillis: Long,
+    ): ConversationSummary {
+        dao.setInitialTitle(
+            conversationId = conversationId,
+            title = conversationTitle(firstUserMessage),
+            updatedAt = updatedAtEpochMillis,
+        )
+        return requireNotNull(summary(conversationId))
+    }
+
     override suspend fun loadLatestConversation(): ConversationHistory? {
         val conversation = dao.latestConversation() ?: return null
-        val messages = dao.messagesForConversation(conversation.id)
+        return conversation.toHistory()
+    }
+
+    private suspend fun ConversationEntity.toHistory(): ConversationHistory {
+        val messages = dao.messagesForConversation(id)
         val turns = messages.groupBy(ConversationMessageEntity::turn_sequence).mapNotNull { (_, turnMessages) ->
             val user = turnMessages.singleOrNull { it.role == UserRole } ?: return@mapNotNull null
             val assistant = turnMessages.singleOrNull { it.role == AssistantRole } ?: return@mapNotNull null
@@ -21,7 +57,7 @@ internal class RoomConversationHistoryRepo(
                 completedAtEpochMillis = assistant.created_at,
             )
         }
-        return ConversationHistory(id = conversation.id, turns = turns)
+        return ConversationHistory(id = id, turns = turns)
     }
 
     override suspend fun saveSuccessfulTurns(
@@ -33,7 +69,7 @@ internal class RoomConversationHistoryRepo(
         }
         return dao.saveTurns(
             conversationId = conversationId,
-            title = historyTitle(turns.first().userContent),
+            title = conversationTitle(turns.first().userContent),
             createdAt = turns.first().completedAtEpochMillis,
             turns = turns,
         )
@@ -43,11 +79,16 @@ internal class RoomConversationHistoryRepo(
         dao.deleteConversation(conversationId)
     }
 
-    private fun historyTitle(question: String): String = question
-        .lineSequence()
-        .joinToString(separator = " ") { it.trim() }
-        .trim()
-        .take(80)
+    private suspend fun summary(conversationId: Long): ConversationSummary? =
+        dao.conversationSummary(conversationId)?.toSummary()
+
+    private fun ConversationSummaryRow.toSummary() = ConversationSummary(
+        id = id,
+        title = title,
+        preview = preview,
+        createdAtEpochMillis = createdAt,
+        updatedAtEpochMillis = updatedAt,
+    )
 
     private companion object {
         const val UserRole = "USER"

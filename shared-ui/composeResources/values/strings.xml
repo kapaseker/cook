@@ -25,14 +25,20 @@
     <string name="unsupported_platform">Cook's AI agent is currently available on Desktop only.</string>
     <string name="history_load_failed">Couldn't load conversation history.</string>
     <string name="history_save_failed">Couldn't save conversation history.</string>
-    <string name="history_clear_failed">Couldn't clear conversation history.</string>
-    <string name="clear_history">Clear history</string>
-    <string name="clear_history_title">Clear conversation history?</string>
-    <string name="clear_history_message">This permanently deletes the saved conversation history.</string>
+    <string name="history_clear_failed">Couldn't delete chat.</string>
     <string name="cancel">Cancel</string>
-    <string name="clear">Clear</string>
+    <string name="new_chat">New chat</string>
+    <string name="create_chat">Create chat</string>
+    <string name="show_chat_list">Show chat list</string>
+    <string name="hide_chat_list">Hide chat list</string>
+    <string name="no_messages_yet">No messages yet</string>
+    <string name="delete_chat">Delete chat</string>
+    <string name="delete_chat_title">Delete &quot;%1$s&quot;?</string>
+    <string name="delete_chat_message">This permanently deletes this chat and all its messages.</string>
+    <string name="delete">Delete</string>
     <string name="settings">Settings</string>
     <string name="model">Model</string>
+    <string name="model_load_failed">Couldn't load model selection. Using GLM.</string>
     <string name="model_save_failed">Couldn't save model selection.</string>
     <string name="back">Back</string>
     <string name="text_scale">Text scale</string>
@@ -45,4 +51,10 @@
     <string name="preview_label">Label preview</string>
     <string name="text_scale_load_failed">Couldn't load text scale. Using device default.</string>
     <string name="text_scale_save_failed">Couldn't save text scale.</string>
+    <string name="ui_scale">UI scale</string>
+    <string name="default_ui_scale">Default (%1$s)</string>
+    <string name="reset_ui_scale">Reset UI scale</string>
+    <string name="ui_scale_load_failed">Couldn't load UI scale. Using 1.0x.</string>
+    <string name="ui_scale_save_failed">Couldn't save UI scale.</string>
+    <string name="preview_button">Button preview</string>
 </resources>

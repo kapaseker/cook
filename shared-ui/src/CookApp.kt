@@ -26,6 +26,7 @@ import page.chat.ChatPage
 import page.settings.SettingsPage
 import page.settings.biz.SettingsViewModel
 import page.settings.biz.selectedTextScale
+import page.settings.biz.selectedUiScale
 import theme.CookTheme
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -43,11 +44,13 @@ private val navigationStateConfiguration = SavedStateConfiguration {
 @Preview
 fun CookApp() {
     val settingsViewModel = koinViewModel<SettingsViewModel>()
-    val settingsState by settingsViewModel.uiState.collectAsState()
+    val modelState by settingsViewModel.modelState.collectAsState()
+    val textScaleState by settingsViewModel.textScaleState.collectAsState()
+    val uiScaleState by settingsViewModel.uiScaleState.collectAsState()
     val systemDensity = LocalDensity.current
     val backStack = rememberNavBackStack(navigationStateConfiguration, ChatRoute)
 
-    if (!settingsState.isLoaded) {
+    if (!modelState.isLoaded || !textScaleState.isLoaded || !uiScaleState.isLoaded) {
         MaterialTheme {
             LoadingScreen()
         }
@@ -56,10 +59,11 @@ fun CookApp() {
 
     val selectedScale = selectedTextScale(
         density = systemDensity.density,
-        userScale = settingsState.userScale,
+        userScale = textScaleState.userScale,
     )
+    val uiScale = selectedUiScale(uiScaleState.userScale)
 
-    CookTheme(textScale = selectedScale) {
+    CookTheme(textScale = selectedScale, uiScale = uiScale) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
@@ -78,7 +82,7 @@ fun CookApp() {
                 entryProvider = entryProvider {
                     entry<ChatRoute> {
                         ChatPage(
-                            selectedModel = settingsState.selectedModel,
+                            selectedModel = modelState.selectedModel,
                             onOpenSettings = {
                                 if (backStack.lastOrNull() != SettingsRoute) {
                                     backStack.add(SettingsRoute)
@@ -88,11 +92,17 @@ fun CookApp() {
                     }
                     entry<SettingsRoute> {
                         SettingsPage(
-                            state = settingsState,
+                            modelState = modelState,
+                            textScaleState = textScaleState,
+                            uiScaleState = uiScaleState,
                             selectedScale = selectedScale,
-                            onScaleChanged = settingsViewModel::previewScale,
-                            onScaleChangeFinished = settingsViewModel::savePreviewedScale,
-                            onResetToDeviceDefault = settingsViewModel::resetToDeviceDefault,
+                            systemDensity = systemDensity,
+                            onTextScaleChanged = settingsViewModel::previewTextScale,
+                            onTextScaleChangeFinished = settingsViewModel::savePreviewedTextScale,
+                            onResetTextScale = settingsViewModel::resetTextScale,
+                            onUiScaleChanged = settingsViewModel::previewUiScale,
+                            onUiScaleChangeFinished = settingsViewModel::applyPreviewedUiScale,
+                            onResetUiScale = settingsViewModel::resetUiScale,
                             onModelSelected = settingsViewModel::selectModel,
                             onBack = { backStack.removeLastOrNull() },
                         )

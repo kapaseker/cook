@@ -1,5 +1,6 @@
 package repository.history
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -22,6 +23,14 @@ internal data class ConversationEntity(
     val title: String?,
     val created_at: Long,
     val updated_at: Long,
+)
+
+internal data class ConversationSummaryRow(
+    val id: Long,
+    val title: String?,
+    val preview: String?,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
 @Entity(
@@ -56,8 +65,29 @@ internal data class ConversationMessageEntity(
 
 @Dao
 internal interface ConversationHistoryDao {
+    @Query(
+        "SELECT conversations.id, conversations.title, conversations.created_at, conversations.updated_at, " +
+            "(SELECT content FROM conversation_messages " +
+            "WHERE conversation_id = conversations.id " +
+            "ORDER BY turn_sequence DESC, message_sequence DESC LIMIT 1) AS preview " +
+            "FROM conversations ORDER BY conversations.updated_at DESC, conversations.id DESC",
+    )
+    suspend fun conversationSummaries(): List<ConversationSummaryRow>
+
+    @Query(
+        "SELECT conversations.id, conversations.title, conversations.created_at, conversations.updated_at, " +
+            "(SELECT content FROM conversation_messages " +
+            "WHERE conversation_id = conversations.id " +
+            "ORDER BY turn_sequence DESC, message_sequence DESC LIMIT 1) AS preview " +
+            "FROM conversations WHERE conversations.id = :conversationId",
+    )
+    suspend fun conversationSummary(conversationId: Long): ConversationSummaryRow?
+
     @Query("SELECT * FROM conversations ORDER BY updated_at DESC, id DESC LIMIT 1")
     suspend fun latestConversation(): ConversationEntity?
+
+    @Query("SELECT * FROM conversations WHERE id = :conversationId")
+    suspend fun conversation(conversationId: Long): ConversationEntity?
 
     @Query(
         "SELECT * FROM conversation_messages WHERE conversation_id = :conversationId " +
@@ -67,6 +97,12 @@ internal interface ConversationHistoryDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertConversation(conversation: ConversationEntity): Long
+
+    @Query(
+        "UPDATE conversations SET title = :title, updated_at = :updatedAt " +
+            "WHERE id = :conversationId AND title IS NULL",
+    )
+    suspend fun setInitialTitle(conversationId: Long, title: String, updatedAt: Long)
 
     @Query(
         "UPDATE conversations SET updated_at = :updatedAt " +

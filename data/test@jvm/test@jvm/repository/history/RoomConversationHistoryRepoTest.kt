@@ -12,6 +12,64 @@ import kotlin.test.assertTrue
 class RoomConversationHistoryRepoTest {
 
     @Test
+    fun `creates and lists empty conversations by recent activity`() = runBlocking {
+        withRepository { repository ->
+            val first = repository.createConversation(createdAtEpochMillis = 1)
+            val second = repository.createConversation(createdAtEpochMillis = 2)
+
+            assertEquals(listOf(second.id, first.id), repository.listConversations().map { it.id })
+            assertNull(second.title)
+            assertNull(second.preview)
+            assertEquals(emptyList(), repository.loadConversation(second.id)?.turns)
+        }
+    }
+
+    @Test
+    fun `first submitted message sets a three word title only once`() = runBlocking {
+        withRepository { repository ->
+            val conversation = repository.createConversation(createdAtEpochMillis = 1)
+
+            val titled = repository.setInitialTitle(
+                conversationId = conversation.id,
+                firstUserMessage = "  How do\n I   cook tofu?  ",
+                updatedAtEpochMillis = 2,
+            )
+            val unchanged = repository.setInitialTitle(
+                conversationId = conversation.id,
+                firstUserMessage = "Replace this title",
+                updatedAtEpochMillis = 3,
+            )
+
+            assertEquals("How do I", titled.title)
+            assertEquals("How do I", unchanged.title)
+        }
+    }
+
+    @Test
+    fun `successful turns update preview and recent activity ordering`() = runBlocking {
+        withRepository { repository ->
+            val first = repository.createConversation(createdAtEpochMillis = 1)
+            val second = repository.createConversation(createdAtEpochMillis = 2)
+
+            repository.saveSuccessfulTurns(
+                conversationId = first.id,
+                turns = listOf(
+                    turn(
+                        sequence = 0,
+                        user = "Question",
+                        assistant = "Latest answer",
+                        completedAt = 3,
+                    ),
+                ),
+            )
+
+            val summaries = repository.listConversations()
+            assertEquals(listOf(first.id, second.id), summaries.map { it.id })
+            assertEquals("Latest answer", summaries.first().preview)
+        }
+    }
+
+    @Test
     fun `saves ordered completed turns with database generated ids`() = runBlocking {
         withRepository { repository ->
             val conversationId = repository.saveSuccessfulTurns(

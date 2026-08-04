@@ -20,16 +20,6 @@ class TextScaleTest {
         assertEquals(1.4f, selectedTextScale(density = 2.625f, userScale = 1.36f), 0.001f)
     }
 
-    /** Verifies that injected font scale removes compose density from the text conversion. */
-    @Test
-    fun `injected font scale removes compose density from the text conversion`() {
-        assertEquals(
-            0.8f,
-            injectedFontScale(systemFontScale = 1.2f, density = 3f, selectedScale = 2f),
-            0.001f,
-        )
-    }
-
     /** Verifies that labels always show one decimal place. */
     @Test
     fun `labels always show one decimal place`() {

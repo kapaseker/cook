@@ -41,7 +41,6 @@ import org.jetbrains.compose.resources.stringResource
 import theme.CookDimensions
 import theme.CookOpacity
 import theme.CookShapes
-import widget.MediumIconButton
 import page.chat.biz.ChatMessage
 import page.chat.biz.ChatConversationUiState
 import page.chat.biz.ChatDraftUiState
@@ -54,35 +53,24 @@ import page.chat.biz.MessageAuthor
 import page.chat.markdown.AgentMarkdownText
 import kotlin.time.Duration.Companion.milliseconds
 
-/** Renders the chat header, message list, and composer. */
+/** Renders the selected chat's message list, composer, and delete confirmation. */
 @Composable
 internal fun ChatConversationScreen(
     conversationState: ChatConversationUiState,
     draftState: ChatDraftUiState,
     requestState: ChatRequestUiState,
     historyState: ChatHistoryUiState,
-    modelName: String,
+    deleteChatTitle: String,
     onDraftChanged: (String) -> Unit,
     onNavigateDraftHistory: (ChatDraftHistoryDirection) -> Boolean,
     onSend: () -> Unit,
-    onRequestClearHistory: () -> Unit,
-    onDismissClearHistoryConfirmation: () -> Unit,
-    onConfirmClearHistory: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onDismissDeleteChatConfirmation: () -> Unit,
+    onConfirmDeleteChat: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
     ) {
-        ChatHeader(
-            modelName = modelName,
-            canClearHistory = historyState.isLoaded &&
-                !historyState.isClearing &&
-                !requestState.isSending &&
-                conversationState.messages.any { it.author == MessageAuthor.User },
-            onClearHistory = onRequestClearHistory,
-            onOpenSettings = onOpenSettings,
-        )
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         if (historyState.isLoaded) {
             MessageList(
                 messages = conversationState.messages,
@@ -107,58 +95,10 @@ internal fun ChatConversationScreen(
             onSend = onSend,
         )
         if (historyState.isClearConfirmationVisible) {
-            ClearHistoryConfirmation(
-                onDismiss = onDismissClearHistoryConfirmation,
-                onConfirm = onConfirmClearHistory,
-            )
-        }
-    }
-}
-
-/** Renders the chat title and settings action. */
-@Composable
-private fun ChatHeader(
-    modelName: String,
-    canClearHistory: Boolean,
-    onClearHistory: () -> Unit,
-    onOpenSettings: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(
-            horizontal = CookDimensions.contentHorizontalPadding,
-            vertical = CookDimensions.contentVerticalPadding,
-        ),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(CookDimensions.headerTextSpacing),
-        ) {
-            Text(
-                text = stringResource(Res.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(Res.string.powered_by_model, modelName),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(CookDimensions.buttonSpacing),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            MediumIconButton(
-                onClick = onClearHistory,
-                enabled = canClearHistory,
-                painter = painterResource(Res.drawable.ic_clear),
-                contentDescription = stringResource(Res.string.clear_history),
-            )
-            MediumIconButton(
-                onClick = onOpenSettings,
-                painter = painterResource(Res.drawable.ic_settings),
-                contentDescription = stringResource(Res.string.settings),
+            DeleteChatConfirmation(
+                chatTitle = deleteChatTitle,
+                onDismiss = onDismissDeleteChatConfirmation,
+                onConfirm = onConfirmDeleteChat,
             )
         }
     }
@@ -540,16 +480,17 @@ internal fun isCursorOnFirstLine(value: TextFieldValue): Boolean =
 internal fun isCursorOnLastLine(value: TextFieldValue): Boolean =
     value.text.substring(value.selection.end).none { it == '\n' }
 
-/** Confirms permanent deletion of the persisted conversation. */
+/** Confirms permanent deletion of the selected chat. */
 @Composable
-private fun ClearHistoryConfirmation(
+private fun DeleteChatConfirmation(
+    chatTitle: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.clear_history_title)) },
-        text = { Text(stringResource(Res.string.clear_history_message)) },
+        title = { Text(stringResource(Res.string.delete_chat_title, chatTitle)) },
+        text = { Text(stringResource(Res.string.delete_chat_message)) },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.cancel))
@@ -562,7 +503,7 @@ private fun ClearHistoryConfirmation(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Text(stringResource(Res.string.clear))
+                Text(stringResource(Res.string.delete))
             }
         },
     )
