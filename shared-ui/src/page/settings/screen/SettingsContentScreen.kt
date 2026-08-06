@@ -4,7 +4,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -17,22 +29,23 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import cook.generated.resources.*
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import widget.MediumIconButton
 import page.settings.biz.ModelSettingsUiState
 import page.settings.biz.TextScaleUiState
 import page.settings.biz.UiScaleUiState
 import page.settings.biz.displayScaleLabel
 import page.settings.biz.scaledDensity
 import page.settings.biz.textScaleLabel
-import repository.settings.DefaultUiScale
+import repository.agent.CookModel
 import repository.settings.DisplayScaleSliderSteps
 import repository.settings.MaximumDisplayScale
 import repository.settings.MinimumDisplayScale
-import repository.agent.CookModel
+import theme.CookDimensions
+import theme.CookShapes
+import widget.AppNavigationDestination
+import widget.AppSideNavigation
 
-/** Renders the model and independent text/UI scale settings. */
+/** Renders the model and independent text/UI scale settings in the settings destination. */
 @Composable
 internal fun SettingsContentScreen(
     modelState: ModelSettingsUiState,
@@ -49,182 +62,234 @@ internal fun SettingsContentScreen(
     onModelSelected: (CookModel) -> Unit,
     onBack: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+    Row(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
     ) {
-        SettingsHeader(onBack = onBack)
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Column(
+        AppSideNavigation(
+            selectedDestination = AppNavigationDestination.Settings,
+            onOpenChat = onBack,
+            onOpenSettings = {},
+        )
+        VerticalDivider(
+            modifier = Modifier.fillMaxHeight(),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        )
+        Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxHeight()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = 72.dp, vertical = 64.dp),
         ) {
-            ModelSelector(
-                availableModels = modelState.availableModels,
-                selectedModel = modelState.selectedModel,
-                onModelSelected = onModelSelected,
-            )
-            if (modelState.loadFailed) {
-                ErrorText(stringResource(Res.string.model_load_failed))
-            }
-            if (modelState.saveFailed) {
-                ErrorText(stringResource(Res.string.model_save_failed))
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Text(
-                text = stringResource(Res.string.text_scale),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Text(
-                text = if (textScaleState.userScale == null) {
-                    stringResource(
-                        Res.string.device_default_scale,
-                        textScaleLabel(selectedScale),
-                    )
-                } else {
-                    stringResource(Res.string.custom_scale, textScaleLabel(selectedScale))
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Slider(
-                value = selectedScale,
-                onValueChange = onTextScaleChanged,
-                modifier = Modifier.fillMaxWidth(),
-                valueRange = MinimumDisplayScale..MaximumDisplayScale,
-                steps = DisplayScaleSliderSteps,
-                onValueChangeFinished = onTextScaleChangeFinished,
-            )
-            Button(
-                onClick = onResetTextScale,
-                enabled = textScaleState.userScale != null,
+            Column(
+                modifier = Modifier.fillMaxWidth().widthIn(max = CookDimensions.contentMaxWidth),
+                verticalArrangement = Arrangement.spacedBy(40.dp),
             ) {
-                Text(stringResource(Res.string.reset_to_device_default))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Settings", style = MaterialTheme.typography.headlineLarge)
+                    Text(
+                        "Manage your preferences and account details.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextAppearanceCard(
+                    state = textScaleState,
+                    selectedScale = selectedScale,
+                    onScaleChanged = onTextScaleChanged,
+                    onScaleChangeFinished = onTextScaleChangeFinished,
+                    onReset = onResetTextScale,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(CookDimensions.pageGutter),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    ApplicationSettingsCard(
+                        modelState = modelState,
+                        uiScaleState = uiScaleState,
+                        selectedTextScale = selectedScale,
+                        systemDensity = systemDensity,
+                        onModelSelected = onModelSelected,
+                        onUiScaleChanged = onUiScaleChanged,
+                        onUiScaleChangeFinished = onUiScaleChangeFinished,
+                        onResetUiScale = onResetUiScale,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AboutCard(modifier = Modifier.weight(1f))
+                }
             }
-            if (textScaleState.loadFailed) {
-                ErrorText(stringResource(Res.string.text_scale_load_failed))
-            }
-            if (textScaleState.saveFailed) {
-                ErrorText(stringResource(Res.string.text_scale_save_failed))
-            }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Text(
-                text = stringResource(Res.string.preview),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(Res.string.preview_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
-            Text(
-                text = stringResource(Res.string.preview_body),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = stringResource(Res.string.preview_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            UiScaleSettings(
-                state = uiScaleState,
-                selectedTextScale = selectedScale,
-                systemDensity = systemDensity,
-                onScaleChanged = onUiScaleChanged,
-                onScaleChangeFinished = onUiScaleChangeFinished,
-                onReset = onResetUiScale,
-            )
         }
     }
 }
 
-/** Renders the UI-scale slider, reset action, status, and focused preview. */
 @Composable
-private fun UiScaleSettings(
-    state: UiScaleUiState,
-    selectedTextScale: Float,
-    systemDensity: Density,
+private fun TextAppearanceCard(
+    state: TextScaleUiState,
+    selectedScale: Float,
     onScaleChanged: (Float) -> Unit,
     onScaleChangeFinished: () -> Unit,
     onReset: () -> Unit,
 ) {
-    Text(
-        text = stringResource(Res.string.ui_scale),
-        style = MaterialTheme.typography.titleLarge,
-    )
-    Text(
-        text = if (state.userScale == null && state.previewScale == DefaultUiScale) {
-            stringResource(
-                Res.string.default_ui_scale,
-                displayScaleLabel(state.previewScale),
+    SettingsCard(modifier = Modifier.fillMaxWidth()) {
+        Text("Tᴛ", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Text("Text Appearance", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "Adjust how text looks across the app for better readability.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Text(
+                text = "“The quick brown fox jumps over the lazy dog”",
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 48.dp),
+                style = MaterialTheme.typography.bodyMedium,
             )
-        } else {
-            stringResource(Res.string.custom_scale, displayScaleLabel(state.previewScale))
-        },
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Slider(
-        value = state.previewScale,
-        onValueChange = onScaleChanged,
-        modifier = Modifier.fillMaxWidth(),
-        valueRange = MinimumDisplayScale..MaximumDisplayScale,
-        steps = DisplayScaleSliderSteps,
-        onValueChangeFinished = onScaleChangeFinished,
-    )
-    Button(
-        onClick = onReset,
-        enabled = state.userScale != null,
-    ) {
-        Text(stringResource(Res.string.reset_ui_scale))
+        }
+        SettingSlider(
+            label = stringResource(Res.string.text_scale),
+            valueLabel = textScaleLabel(selectedScale),
+            value = selectedScale,
+            onValueChange = onScaleChanged,
+            onValueChangeFinished = onScaleChangeFinished,
+        )
+        TextButton(onClick = onReset, enabled = state.userScale != null) {
+            Text(stringResource(Res.string.reset_to_device_default))
+        }
+        if (state.loadFailed) ErrorText(stringResource(Res.string.text_scale_load_failed))
+        if (state.saveFailed) ErrorText(stringResource(Res.string.text_scale_save_failed))
     }
-    if (state.loadFailed) {
-        ErrorText(stringResource(Res.string.ui_scale_load_failed))
-    }
-    if (state.saveFailed) {
-        ErrorText(stringResource(Res.string.ui_scale_save_failed))
-    }
-    Text(
-        text = stringResource(Res.string.preview),
-        style = MaterialTheme.typography.titleMedium,
-    )
-    UiScaleButtonPreview(
-        textScale = selectedTextScale,
-        uiScale = state.previewScale,
-        systemDensity = systemDensity,
-    )
 }
 
-/** Shows representative controls at the pending scale without resizing the settings page. */
 @Composable
-private fun UiScaleButtonPreview(
-    textScale: Float,
-    uiScale: Float,
+private fun ApplicationSettingsCard(
+    modelState: ModelSettingsUiState,
+    uiScaleState: UiScaleUiState,
+    selectedTextScale: Float,
     systemDensity: Density,
+    onModelSelected: (CookModel) -> Unit,
+    onUiScaleChanged: (Float) -> Unit,
+    onUiScaleChangeFinished: () -> Unit,
+    onResetUiScale: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-        CompositionLocalProvider(
-            LocalDensity provides scaledDensity(systemDensity, textScale, uiScale),
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Button(onClick = {}) {
-                    Text(stringResource(Res.string.preview_button))
-                }
-                MediumIconButton(
-                    onClick = {},
-                    painter = painterResource(Res.drawable.ic_settings),
-                    contentDescription = stringResource(Res.string.settings),
-                )
+    SettingsCard(modifier = modifier) {
+        Text("⚙", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+        Text("Application Settings", style = MaterialTheme.typography.titleLarge)
+        ModelSelector(
+            availableModels = modelState.availableModels,
+            selectedModel = modelState.selectedModel,
+            onModelSelected = onModelSelected,
+        )
+        if (modelState.loadFailed) ErrorText(stringResource(Res.string.model_load_failed))
+        if (modelState.saveFailed) ErrorText(stringResource(Res.string.model_save_failed))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+        SettingSlider(
+            label = stringResource(Res.string.ui_scale),
+            valueLabel = displayScaleLabel(uiScaleState.previewScale),
+            value = uiScaleState.previewScale,
+            onValueChange = onUiScaleChanged,
+            onValueChangeFinished = onUiScaleChangeFinished,
+        )
+        TextButton(onClick = onResetUiScale, enabled = uiScaleState.userScale != null) {
+            Text(stringResource(Res.string.reset_ui_scale))
+        }
+        if (uiScaleState.loadFailed) ErrorText(stringResource(Res.string.ui_scale_load_failed))
+        if (uiScaleState.saveFailed) ErrorText(stringResource(Res.string.ui_scale_save_failed))
+        UiScaleButtonPreview(
+            textScale = selectedTextScale,
+            uiScale = uiScaleState.previewScale,
+            systemDensity = systemDensity,
+        )
+    }
+}
+
+@Composable
+private fun AboutCard(modifier: Modifier = Modifier) {
+    SettingsCard(
+        modifier = modifier.heightIn(min = 408.dp),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Text("ⓘ", style = MaterialTheme.typography.titleLarge)
+        Text("About Cook", style = MaterialTheme.typography.titleLarge)
+        Text(
+            "A calm place for thoughtful cooking conversations.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            "Version 1.0 (Desktop)",
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Box(modifier = Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(onClick = {}, modifier = Modifier.weight(1f)) {
+                Text("Release notes")
+            }
+            OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) {
+                Text("Privacy")
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsCard(
+    modifier: Modifier = Modifier,
+    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerLowest,
+    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = modifier,
+        shape = CookShapes.card,
+        color = containerColor,
+        contentColor = contentColor,
+        tonalElevation = 1.dp,
+        shadowElevation = 2.dp,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun SettingSlider(
+    label: String,
+    valueLabel: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text(
+                valueLabel,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            )
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            valueRange = MinimumDisplayScale..MaximumDisplayScale,
+            steps = DisplayScaleSliderSteps,
+            onValueChangeFinished = onValueChangeFinished,
+        )
     }
 }
 
@@ -236,20 +301,14 @@ private fun ModelSelector(
     onModelSelected: (CookModel) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(Res.string.model),
-            style = MaterialTheme.typography.titleLarge,
-        )
+        Text(stringResource(Res.string.model), style = MaterialTheme.typography.labelLarge)
         Box {
-            OutlinedButton(onClick = { expanded = true }) {
-                Text(selectedModel.displayName)
+            OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(selectedModel.displayName, modifier = Modifier.weight(1f))
+                Text("⌄")
             }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-            ) {
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 availableModels.forEach { model ->
                     DropdownMenuItem(
                         text = { Text(model.displayName) },
@@ -258,10 +317,7 @@ private fun ModelSelector(
                             onModelSelected(model)
                         },
                         leadingIcon = {
-                            RadioButton(
-                                selected = model.id == selectedModel.id,
-                                onClick = null,
-                            )
+                            RadioButton(selected = model.id == selectedModel.id, onClick = null)
                         },
                     )
                 }
@@ -270,34 +326,34 @@ private fun ModelSelector(
     }
 }
 
-/** Renders the settings title and back action. */
+/** Shows representative controls at the pending scale without resizing the settings page. */
 @Composable
-private fun SettingsHeader(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+private fun UiScaleButtonPreview(
+    textScale: Float,
+    uiScale: Float,
+    systemDensity: Density,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(8.dp),
     ) {
-        MediumIconButton(
-            onClick = onBack,
-            painter = painterResource(Res.drawable.ic_left),
-            contentDescription = stringResource(Res.string.back),
-        )
-        Text(
-            text = stringResource(Res.string.settings),
-            style = MaterialTheme.typography.headlineSmall,
-        )
+        CompositionLocalProvider(
+            LocalDensity provides scaledDensity(systemDensity, textScale, uiScale),
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = {}) { Text(stringResource(Res.string.preview_button)) }
+                OutlinedButton(onClick = {}) { Text("Preview") }
+            }
+        }
     }
 }
 
-/** Renders an error message using the theme error color. */
 @Composable
 private fun ErrorText(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
-    )
+    Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
 }

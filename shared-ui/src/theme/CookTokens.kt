@@ -12,19 +12,24 @@ object CookDimensions {
     val messageSpacing = 12.dp
     val listEndAnchorHeight = 1.dp
     val messageLabelSpacing = 4.dp
-    val messageBubbleCornerRadius = 8.dp
-    val messageBubbleHorizontalPadding = 14.dp
-    val messageBubbleVerticalPadding = 10.dp
-    val composerPadding = 20.dp
+    val messageBubbleCornerRadius = 12.dp
+    val messageBubbleHorizontalPadding = 16.dp
+    val messageBubbleVerticalPadding = 16.dp
+    val composerPadding = 24.dp
     val composerSpacing = 8.dp
     val composerRowSpacing = 12.dp
-    val sendButtonHeight = 56.dp
+    val sendButtonHeight = 48.dp
     val buttonSpacing = 12.dp
-    val chatListWidth = 280.dp
+    val chatListWidth = 320.dp
+    val sideNavigationWidth = 240.dp
+    val pageGutter = 20.dp
+    val contentMaxWidth = 896.dp
+    val cardCornerRadius = 12.dp
 }
 
 object CookShapes {
     val messageBubble = RoundedCornerShape(CookDimensions.messageBubbleCornerRadius)
+    val card = RoundedCornerShape(CookDimensions.cardCornerRadius)
 }
 
 object CookOpacity {

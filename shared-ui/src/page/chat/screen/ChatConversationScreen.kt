@@ -26,10 +26,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.unit.dp
 import cook.generated.resources.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -61,9 +63,15 @@ internal fun ChatConversationScreen(
     requestState: ChatRequestUiState,
     historyState: ChatHistoryUiState,
     deleteChatTitle: String,
+    chatTitle: String,
+    modelName: String,
+    canDeleteChat: Boolean,
+    isChatListVisible: Boolean,
     onDraftChanged: (String) -> Unit,
     onNavigateDraftHistory: (ChatDraftHistoryDirection) -> Boolean,
     onSend: () -> Unit,
+    onToggleChatList: () -> Unit,
+    onDeleteChat: () -> Unit,
     onDismissDeleteChatConfirmation: () -> Unit,
     onConfirmDeleteChat: () -> Unit,
     modifier: Modifier = Modifier,
@@ -71,6 +79,14 @@ internal fun ChatConversationScreen(
     Column(
         modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
     ) {
+        ConversationHeader(
+            chatTitle = chatTitle,
+            modelName = modelName,
+            canDeleteChat = canDeleteChat,
+            isChatListVisible = isChatListVisible,
+            onToggleChatList = onToggleChatList,
+            onDeleteChat = onDeleteChat,
+        )
         if (historyState.isLoaded) {
             MessageList(
                 messages = conversationState.messages,
@@ -84,7 +100,6 @@ internal fun ChatConversationScreen(
                 CircularProgressIndicator()
             }
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         MessageComposer(
             draft = draftState.draft,
             isSending = requestState.isSending || !historyState.isLoaded || historyState.isClearing,
@@ -99,6 +114,69 @@ internal fun ChatConversationScreen(
                 chatTitle = deleteChatTitle,
                 onDismiss = onDismissDeleteChatConfirmation,
                 onConfirm = onConfirmDeleteChat,
+            )
+        }
+    }
+}
+
+/** Renders the conversation identity and its local actions. */
+@Composable
+private fun ConversationHeader(
+    chatTitle: String,
+    modelName: String,
+    canDeleteChat: Boolean,
+    isChatListVisible: Boolean,
+    onToggleChatList: () -> Unit,
+    onDeleteChat: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.88f))
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("✦", color = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+        Column(modifier = Modifier.padding(start = 16.dp)) {
+            Text(
+                text = chatTitle,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondary),
+                )
+                Text(
+                    text = "  $modelName online",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onToggleChatList) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_left_bar),
+                contentDescription = if (isChatListVisible) "Hide conversations" else "Show conversations",
+            )
+        }
+        IconButton(onClick = onDeleteChat, enabled = canDeleteChat) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_clear),
+                contentDescription = stringResource(Res.string.delete_chat),
             )
         }
     }
@@ -179,6 +257,21 @@ private fun MessageList(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(CookDimensions.messageSpacing),
         ) {
+            item(key = "today") {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = CircleShape,
+                    ) {
+                        Text(
+                            text = "Today",
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
             items(
                 count = messages.size,
                 key = { index -> messages[index].id },
@@ -259,12 +352,12 @@ private fun MessageBubble(message: ChatMessage) {
     val bubbleColor = if (isUser) {
         MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.surfaceContainerLowest
     }
     val textColor = if (isUser) {
         MaterialTheme.colorScheme.onPrimary
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MaterialTheme.colorScheme.onSurface
     }
 
     Row(
@@ -272,11 +365,13 @@ private fun MessageBubble(message: ChatMessage) {
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(0.8f),
+            modifier = Modifier.fillMaxWidth(0.86f),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(CookDimensions.messageLabelSpacing),
         ) {
-            MessageLabel(message)
+            if (!isUser) {
+                MessageLabel(message)
+            }
             if (message.text.isNotBlank()) {
                 Box(
                     modifier = Modifier.clip(CookShapes.messageBubble).background(bubbleColor).padding(
@@ -313,9 +408,19 @@ private fun MessageBubble(message: ChatMessage) {
 private fun MessageLabel(message: ChatMessage) {
     val isUser = message.author == MessageAuthor.User
     Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("✦", style = MaterialTheme.typography.labelSmall)
+        }
         Text(
             text = stringResource(if (isUser) Res.string.user_label else Res.string.app_name),
-            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(start = 8.dp),
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         val status = message.agentStatus
@@ -393,11 +498,17 @@ private fun MessageComposer(
                 color = MaterialTheme.colorScheme.error,
             )
         }
-        Row(
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(CookDimensions.composerRowSpacing),
-            verticalAlignment = Alignment.CenterVertically,
+            shape = CookShapes.card,
+            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+            tonalElevation = 2.dp,
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(CookDimensions.composerRowSpacing),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             OutlinedTextField(
                 value = editorValue,
                 onValueChange = { value ->
@@ -447,13 +558,20 @@ private fun MessageComposer(
             Button(
                 onClick = onSend,
                 enabled = canSend,
-                modifier = Modifier.height(CookDimensions.sendButtonHeight),
+                modifier = Modifier.size(CookDimensions.sendButtonHeight),
+                shape = CircleShape,
             ) {
-                Text(
-                    stringResource(if (isSending) Res.string.sending else Res.string.send),
-                )
+                Text(if (isSending) "…" else "➤")
+            }
             }
         }
+        Text(
+            text = "Cook can make mistakes. Verify important information.",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outlineVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 }
 
