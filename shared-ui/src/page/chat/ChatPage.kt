@@ -1,8 +1,8 @@
 package page.chat
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -30,14 +30,11 @@ import page.chat.biz.ChatPersistenceFlushRegistry
 import page.chat.screen.ChatConversationScreen
 import page.chat.screen.ChatListScreen
 import repository.agent.CookModel
-import widget.AppNavigationDestination
-import widget.AppSideNavigation
 
-/** Navigation 3 destination that coordinates the chat header, list, and conversation. */
+/** Navigation 3 entry content that coordinates the chat header, list, and conversation. */
 @Composable
 internal fun ChatPage(
     selectedModel: CookModel,
-    onOpenSettings: () -> Unit,
 ) {
     val strings = chatStrings()
     val viewModel = koinViewModel<ChatViewModel> { parametersOf(strings, selectedModel) }
@@ -64,15 +61,6 @@ internal fun ChatPage(
     Row(
         modifier = Modifier.fillMaxSize(),
     ) {
-        AppSideNavigation(
-            selectedDestination = AppNavigationDestination.Chat,
-            onOpenChat = {},
-            onOpenSettings = onOpenSettings,
-        )
-        VerticalDivider(
-            modifier = Modifier.fillMaxHeight(),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-        )
         if (chatListState.isVisible) {
             ChatListScreen(
                 state = chatListState,

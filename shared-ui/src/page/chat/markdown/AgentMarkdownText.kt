@@ -17,7 +17,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import theme.CookDimensions
 
 /** Renders the supported Markdown subset for an agent chat message. */
 @Composable
@@ -30,7 +30,7 @@ internal fun AgentMarkdownText(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(CookDimensions.markdownBlockSpacing),
     ) {
         document.blocks.forEach { block ->
             MarkdownBlockView(block = block, color = color)
@@ -73,8 +73,8 @@ private fun MarkdownListView(
     depth: Int,
 ) {
     Column(
-        modifier = Modifier.padding(start = (depth * 12).dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.padding(start = CookDimensions.markdownListIndent * depth),
+        verticalArrangement = Arrangement.spacedBy(CookDimensions.markdownListItemSpacing),
     ) {
         list.items.forEachIndexed { itemIndex, item ->
             Row {
@@ -87,9 +87,15 @@ private fun MarkdownListView(
                     style = MaterialTheme.typography.bodyLarge,
                     color = color,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(CookDimensions.markdownListMarkerSpacing))
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(if (list.isLoose) 8.dp else 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(
+                        if (list.isLoose) {
+                            CookDimensions.markdownLooseListBlockSpacing
+                        } else {
+                            CookDimensions.markdownTightListBlockSpacing
+                        },
+                    ),
                 ) {
                     item.blocks.forEach { block ->
                         MarkdownBlockView(

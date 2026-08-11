@@ -20,21 +20,23 @@ import androidx.savedstate.serialization.SavedStateConfiguration
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import navigation.ChatRoute
-import navigation.SettingsRoute
+import navigation.ChatNav
+import navigation.SettingsNav
 import page.chat.ChatPage
 import page.settings.SettingsPage
 import page.settings.biz.SettingsViewModel
 import page.settings.biz.selectedTextScale
 import page.settings.biz.selectedUiScale
 import theme.CookTheme
+import widget.AppNavigationDestination
+import widget.CookScaffold
 import org.koin.compose.viewmodel.koinViewModel
 
 private val navigationStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
-            subclass(ChatRoute::class, ChatRoute.serializer())
-            subclass(SettingsRoute::class, SettingsRoute.serializer())
+            subclass(ChatNav::class, ChatNav.serializer())
+            subclass(SettingsNav::class, SettingsNav.serializer())
         }
     }
 }
@@ -48,7 +50,7 @@ fun CookApp() {
     val textScaleState by settingsViewModel.textScaleState.collectAsState()
     val uiScaleState by settingsViewModel.uiScaleState.collectAsState()
     val systemDensity = LocalDensity.current
-    val backStack = rememberNavBackStack(navigationStateConfiguration, ChatRoute)
+    val backStack = rememberNavBackStack(navigationStateConfiguration, ChatNav)
 
     if (!modelState.isLoaded || !textScaleState.isLoaded || !uiScaleState.isLoaded) {
         MaterialTheme {
@@ -68,47 +70,53 @@ fun CookApp() {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
         ) {
-            NavDisplay(
-                backStack = backStack,
-                onBack = {
-                    if (backStack.size > 1) {
+            CookScaffold(
+                selectedDestination = when (backStack.last()) {
+                    ChatNav -> AppNavigationDestination.Chat
+                    SettingsNav -> AppNavigationDestination.Settings
+                    else -> error("Unsupported Cook navigation entry")
+                },
+                onOpenChat = {
+                    if (backStack.lastOrNull() == SettingsNav) {
                         backStack.removeLastOrNull()
                     }
                 },
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-                entryProvider = entryProvider {
-                    entry<ChatRoute> {
-                        ChatPage(
-                            selectedModel = modelState.selectedModel,
-                            onOpenSettings = {
-                                if (backStack.lastOrNull() != SettingsRoute) {
-                                    backStack.add(SettingsRoute)
-                                }
-                            },
-                        )
-                    }
-                    entry<SettingsRoute> {
-                        SettingsPage(
-                            modelState = modelState,
-                            textScaleState = textScaleState,
-                            uiScaleState = uiScaleState,
-                            selectedScale = selectedScale,
-                            systemDensity = systemDensity,
-                            onTextScaleChanged = settingsViewModel::previewTextScale,
-                            onTextScaleChangeFinished = settingsViewModel::savePreviewedTextScale,
-                            onResetTextScale = settingsViewModel::resetTextScale,
-                            onUiScaleChanged = settingsViewModel::previewUiScale,
-                            onUiScaleChangeFinished = settingsViewModel::applyPreviewedUiScale,
-                            onResetUiScale = settingsViewModel::resetUiScale,
-                            onModelSelected = settingsViewModel::selectModel,
-                            onBack = { backStack.removeLastOrNull() },
-                        )
+                onOpenSettings = {
+                    if (backStack.lastOrNull() != SettingsNav) {
+                        backStack.add(SettingsNav)
                     }
                 },
-            )
+            ) {
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = {},
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator(),
+                    ),
+                    entryProvider = entryProvider {
+                        entry<ChatNav> {
+                            ChatPage(selectedModel = modelState.selectedModel)
+                        }
+                        entry<SettingsNav> {
+                            SettingsPage(
+                                modelState = modelState,
+                                textScaleState = textScaleState,
+                                uiScaleState = uiScaleState,
+                                selectedScale = selectedScale,
+                                systemDensity = systemDensity,
+                                onTextScaleChanged = settingsViewModel::previewTextScale,
+                                onTextScaleChangeFinished = settingsViewModel::savePreviewedTextScale,
+                                onResetTextScale = settingsViewModel::resetTextScale,
+                                onUiScaleChanged = settingsViewModel::previewUiScale,
+                                onUiScaleChangeFinished = settingsViewModel::applyPreviewedUiScale,
+                                onResetUiScale = settingsViewModel::resetUiScale,
+                                onModelSelected = settingsViewModel::selectModel,
+                            )
+                        }
+                    }
+                )
+            }
         }
     }
 }

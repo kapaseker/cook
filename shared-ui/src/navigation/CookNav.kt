@@ -4,10 +4,10 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal sealed interface CookRoute : NavKey
+internal sealed interface CookNav : NavKey
 
 @Serializable
-internal data object ChatRoute : CookRoute
+internal data object ChatNav : CookNav
 
 @Serializable
-internal data object SettingsRoute : CookRoute
+internal data object SettingsNav : CookNav

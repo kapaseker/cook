@@ -31,7 +31,6 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.unit.dp
 import cook.generated.resources.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -133,19 +132,22 @@ private fun ConversationHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.88f))
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(
+                horizontal = CookDimensions.conversationHeaderHorizontalPadding,
+                vertical = CookDimensions.conversationHeaderVerticalPadding,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(CookDimensions.conversationHeaderAvatarSize)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Text("✦", color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
-        Column(modifier = Modifier.padding(start = 16.dp)) {
+        Column(modifier = Modifier.padding(start = CookDimensions.conversationHeaderTextSpacing)) {
             Text(
                 text = chatTitle,
                 style = MaterialTheme.typography.labelLarge,
@@ -154,7 +156,7 @@ private fun ConversationHeader(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(CookDimensions.conversationHeaderOnlineIndicatorSize)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondary),
                 )
@@ -265,7 +267,10 @@ private fun MessageList(
                     ) {
                         Text(
                             text = "Today",
-                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(
+                                horizontal = CookDimensions.messageDateLabelHorizontalPadding,
+                                vertical = CookDimensions.messageDateLabelVerticalPadding,
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -410,7 +415,7 @@ private fun MessageLabel(message: ChatMessage) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(24.dp)
+                .size(CookDimensions.messageLabelAvatarSize)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
@@ -419,7 +424,7 @@ private fun MessageLabel(message: ChatMessage) {
         }
         Text(
             text = stringResource(if (isUser) Res.string.user_label else Res.string.app_name),
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier.padding(start = CookDimensions.messageLabelTextSpacing),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -502,10 +507,10 @@ private fun MessageComposer(
             modifier = Modifier.fillMaxWidth(),
             shape = CookShapes.card,
             color = MaterialTheme.colorScheme.surfaceContainerLowest,
-            tonalElevation = 2.dp,
+            tonalElevation = CookDimensions.composerTonalElevation,
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(CookDimensions.composerContentPadding),
                 horizontalArrangement = Arrangement.spacedBy(CookDimensions.composerRowSpacing),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -8,7 +8,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.unit.dp
+import theme.CookDimensions
 
 /** Renders a medium-sized icon button. */
 @Composable
@@ -19,11 +19,11 @@ fun MediumIconButton(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(52.dp)) {
+    IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(CookDimensions.mediumIconButtonSize)) {
         Icon(
             painter = painter,
             contentDescription = contentDescription,
-            modifier = Modifier.padding(10.dp).fillMaxSize(),
+            modifier = Modifier.padding(CookDimensions.mediumIconButtonContentPadding).fillMaxSize(),
         )
     }
 }

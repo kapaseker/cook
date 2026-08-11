@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import cook.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import page.chat.biz.ChatListItemUiState
@@ -40,7 +39,10 @@ internal fun ChatListScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(
+                    horizontal = CookDimensions.chatListHeaderHorizontalPadding,
+                    vertical = CookDimensions.chatListHeaderVerticalPadding,
+                ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Conversations", style = MaterialTheme.typography.headlineSmall)
@@ -50,27 +52,40 @@ internal fun ChatListScreen(
                 }
             }
             Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = CookDimensions.chatListHorizontalPadding),
+                shape = RoundedCornerShape(CookDimensions.chatListSearchCornerRadius),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                border = BorderStroke(
+                    CookDimensions.thinBorderWidth,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                ),
             ) {
                 Text(
                     text = "⌕  Search history…",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(
+                        horizontal = CookDimensions.chatListSearchHorizontalPadding,
+                        vertical = CookDimensions.chatListSearchVerticalPadding,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.outline,
                 )
             }
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxHeight().fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
+                modifier = Modifier.fillMaxHeight().fillMaxWidth().padding(
+                    top = CookDimensions.chatListContentTopPadding,
+                    bottom = CookDimensions.chatListContentBottomPadding,
+                ),
             ) {
                 if (state.items.isNotEmpty()) {
                     item(key = "today-label") {
                         Text(
                             text = "TODAY",
-                            modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
+                            modifier = Modifier.padding(
+                                start = CookDimensions.chatListHorizontalPadding,
+                                top = CookDimensions.chatListDateLabelTopPadding,
+                                bottom = CookDimensions.chatListDateLabelBottomPadding,
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.outline,
                         )
@@ -111,19 +126,31 @@ private fun ChatListItem(
         } else {
             MaterialTheme.colorScheme.onSurface
         },
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(CookDimensions.chatListItemCornerRadius),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(
+                horizontal = CookDimensions.chatListItemHorizontalMargin,
+                vertical = CookDimensions.chatListItemVerticalMargin,
+            )
             .selectable(
                 selected = selected,
                 enabled = enabled && !selected,
                 role = Role.Tab,
                 onClick = onClick,
             ),
-        border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)) else null,
+        border = if (selected) {
+            BorderStroke(CookDimensions.thinBorderWidth, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+        } else {
+            null
+        },
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = CookDimensions.chatListItemHorizontalPadding,
+                vertical = CookDimensions.chatListItemVerticalPadding,
+            ),
+        ) {
             Text(
                 text = item.title ?: stringResource(Res.string.new_chat),
                 style = MaterialTheme.typography.labelLarge,

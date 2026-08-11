@@ -1,6 +1,5 @@
 package page.settings.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,7 +15,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -27,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.dp
 import cook.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import page.settings.biz.ModelSettingsUiState
@@ -42,8 +39,6 @@ import repository.settings.MaximumDisplayScale
 import repository.settings.MinimumDisplayScale
 import theme.CookDimensions
 import theme.CookShapes
-import widget.AppNavigationDestination
-import widget.AppSideNavigation
 
 /** Renders the model and independent text/UI scale settings in the settings destination. */
 @Composable
@@ -60,64 +55,52 @@ internal fun SettingsContentScreen(
     onUiScaleChangeFinished: () -> Unit,
     onResetUiScale: () -> Unit,
     onModelSelected: (CookModel) -> Unit,
-    onBack: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(
+                horizontal = CookDimensions.settingsContentHorizontalPadding,
+                vertical = CookDimensions.settingsContentVerticalPadding,
+            ),
     ) {
-        AppSideNavigation(
-            selectedDestination = AppNavigationDestination.Settings,
-            onOpenChat = onBack,
-            onOpenSettings = {},
-        )
-        VerticalDivider(
-            modifier = Modifier.fillMaxHeight(),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 72.dp, vertical = 64.dp),
+        Column(
+            modifier = Modifier.fillMaxWidth().widthIn(max = CookDimensions.contentMaxWidth),
+            verticalArrangement = Arrangement.spacedBy(CookDimensions.settingsSectionSpacing),
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().widthIn(max = CookDimensions.contentMaxWidth),
-                verticalArrangement = Arrangement.spacedBy(40.dp),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Settings", style = MaterialTheme.typography.headlineLarge)
-                    Text(
-                        "Manage your preferences and account details.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                TextAppearanceCard(
-                    state = textScaleState,
-                    selectedScale = selectedScale,
-                    onScaleChanged = onTextScaleChanged,
-                    onScaleChangeFinished = onTextScaleChangeFinished,
-                    onReset = onResetTextScale,
+            Column(verticalArrangement = Arrangement.spacedBy(CookDimensions.settingsHeadingSpacing)) {
+                Text("Settings", style = MaterialTheme.typography.headlineLarge)
+                Text(
+                    "Manage your preferences and account details.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(CookDimensions.pageGutter),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    ApplicationSettingsCard(
-                        modelState = modelState,
-                        uiScaleState = uiScaleState,
-                        selectedTextScale = selectedScale,
-                        systemDensity = systemDensity,
-                        onModelSelected = onModelSelected,
-                        onUiScaleChanged = onUiScaleChanged,
-                        onUiScaleChangeFinished = onUiScaleChangeFinished,
-                        onResetUiScale = onResetUiScale,
-                        modifier = Modifier.weight(1f),
-                    )
-                    AboutCard(modifier = Modifier.weight(1f))
-                }
+            }
+            TextAppearanceCard(
+                state = textScaleState,
+                selectedScale = selectedScale,
+                onScaleChanged = onTextScaleChanged,
+                onScaleChangeFinished = onTextScaleChangeFinished,
+                onReset = onResetTextScale,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(CookDimensions.pageGutter),
+                verticalAlignment = Alignment.Top,
+            ) {
+                ApplicationSettingsCard(
+                    modelState = modelState,
+                    uiScaleState = uiScaleState,
+                    selectedTextScale = selectedScale,
+                    systemDensity = systemDensity,
+                    onModelSelected = onModelSelected,
+                    onUiScaleChanged = onUiScaleChanged,
+                    onUiScaleChangeFinished = onUiScaleChangeFinished,
+                    onResetUiScale = onResetUiScale,
+                    modifier = Modifier.weight(1f),
+                )
+                AboutCard(modifier = Modifier.weight(1f))
             }
         }
     }
@@ -140,13 +123,16 @@ private fun TextAppearanceCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = CookDimensions.settingsPreviewTopPadding),
             color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(CookDimensions.settingsPreviewCornerRadius),
         ) {
             Text(
                 text = "“The quick brown fox jumps over the lazy dog”",
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 48.dp),
+                modifier = Modifier.padding(
+                    horizontal = CookDimensions.textAppearancePreviewHorizontalPadding,
+                    vertical = CookDimensions.textAppearancePreviewVerticalPadding,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -211,7 +197,7 @@ private fun ApplicationSettingsCard(
 @Composable
 private fun AboutCard(modifier: Modifier = Modifier) {
     SettingsCard(
-        modifier = modifier.heightIn(min = 408.dp),
+        modifier = modifier.heightIn(min = CookDimensions.aboutCardMinimumHeight),
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
@@ -226,7 +212,7 @@ private fun AboutCard(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.labelLarge,
         )
         Box(modifier = Modifier.weight(1f))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(CookDimensions.aboutCardActionSpacing)) {
             Button(onClick = {}, modifier = Modifier.weight(1f)) {
                 Text("Release notes")
             }
@@ -249,12 +235,12 @@ private fun SettingsCard(
         shape = CookShapes.card,
         color = containerColor,
         contentColor = contentColor,
-        tonalElevation = 1.dp,
-        shadowElevation = 2.dp,
+        tonalElevation = CookDimensions.settingsCardTonalElevation,
+        shadowElevation = CookDimensions.settingsCardShadowElevation,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(CookDimensions.settingsCardContentPadding),
+            verticalArrangement = Arrangement.spacedBy(CookDimensions.settingsCardContentSpacing),
             content = content,
         )
     }
@@ -269,8 +255,8 @@ private fun SettingSlider(
     onValueChangeFinished: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = CookDimensions.settingsSliderTopPadding),
+        verticalArrangement = Arrangement.spacedBy(CookDimensions.settingsSliderContentSpacing),
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             Text(label, style = MaterialTheme.typography.labelLarge)
@@ -301,7 +287,7 @@ private fun ModelSelector(
     onModelSelected: (CookModel) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(CookDimensions.modelSelectorContentSpacing)) {
         Text(stringResource(Res.string.model), style = MaterialTheme.typography.labelLarge)
         Box {
             OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
@@ -336,14 +322,14 @@ private fun UiScaleButtonPreview(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(CookDimensions.settingsPreviewCornerRadius),
     ) {
         CompositionLocalProvider(
             LocalDensity provides scaledDensity(systemDensity, textScale, uiScale),
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(CookDimensions.scalePreviewContentPadding),
+                horizontalArrangement = Arrangement.spacedBy(CookDimensions.scalePreviewControlSpacing),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Button(onClick = {}) { Text(stringResource(Res.string.preview_button)) }

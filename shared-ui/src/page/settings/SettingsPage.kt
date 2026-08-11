@@ -23,7 +23,6 @@ internal fun SettingsPage(
     onUiScaleChangeFinished: () -> Unit,
     onResetUiScale: () -> Unit,
     onModelSelected: (CookModel) -> Unit,
-    onBack: () -> Unit,
 ) {
     SettingsContentScreen(
         modelState = modelState,
@@ -38,6 +37,5 @@ internal fun SettingsPage(
         onUiScaleChangeFinished = onUiScaleChangeFinished,
         onResetUiScale = onResetUiScale,
         onModelSelected = onModelSelected,
-        onBack = onBack,
     )
 }

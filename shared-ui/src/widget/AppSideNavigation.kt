@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,7 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import cook.generated.resources.Res
+import cook.generated.resources.ic_chat
+import cook.generated.resources.ic_chat_fill
+import cook.generated.resources.ic_settings
+import cook.generated.resources.ic_settings_fill
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import theme.CookDimensions
 
 /** Identifies the active destination in the shared desktop navigation rail. */
@@ -36,9 +43,12 @@ internal fun AppSideNavigation(
             .width(CookDimensions.sideNavigationWidth)
             .fillMaxHeight()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp, vertical = 24.dp),
+            .padding(
+                horizontal = CookDimensions.sideNavigationHorizontalPadding,
+                vertical = CookDimensions.sideNavigationVerticalPadding,
+            ),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+        Column(modifier = Modifier.padding(horizontal = CookDimensions.sideNavigationBrandHorizontalPadding)) {
             Text(
                 text = "Cook",
                 style = MaterialTheme.typography.headlineMedium,
@@ -51,19 +61,24 @@ internal fun AppSideNavigation(
             )
         }
         Column(
-            modifier = Modifier.padding(top = 48.dp).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(top = CookDimensions.sideNavigationDestinationTopPadding).weight(1f),
+            verticalArrangement = Arrangement.spacedBy(CookDimensions.sideNavigationDestinationSpacing),
         ) {
-            NavigationItem(label = "Home", symbol = "⌂", selected = false)
             NavigationItem(
                 label = "Chat",
-                symbol = "▣",
+                leadingVisual = NavigationItemLeadingVisual.Icon(
+                    deselected = Res.drawable.ic_chat,
+                    selected = Res.drawable.ic_chat_fill,
+                ),
                 selected = selectedDestination == AppNavigationDestination.Chat,
                 onClick = onOpenChat,
             )
             NavigationItem(
                 label = "Settings",
-                symbol = "⚙",
+                leadingVisual = NavigationItemLeadingVisual.Icon(
+                    deselected = Res.drawable.ic_settings,
+                    selected = Res.drawable.ic_settings_fill,
+                ),
                 selected = selectedDestination == AppNavigationDestination.Settings,
                 onClick = onOpenSettings,
             )
@@ -75,24 +90,41 @@ internal fun AppSideNavigation(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(CookDimensions.sideNavigationItemCornerRadius),
         ) {
             Text("Upgrade to Pro", style = MaterialTheme.typography.labelLarge)
         }
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 24.dp),
+            modifier = Modifier.padding(vertical = CookDimensions.sideNavigationDividerVerticalPadding),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
         )
-        NavigationItem(label = "Help", symbol = "?", selected = false)
-        Spacer(Modifier.padding(vertical = 4.dp))
-        NavigationItem(label = "Log out", symbol = "↪", selected = false)
+        NavigationItem(
+            label = "Help",
+            leadingVisual = NavigationItemLeadingVisual.Symbol("?"),
+            selected = false,
+        )
+        Spacer(Modifier.padding(vertical = CookDimensions.sideNavigationFooterSpacing))
+        NavigationItem(
+            label = "Log out",
+            leadingVisual = NavigationItemLeadingVisual.Symbol("↪"),
+            selected = false,
+        )
     }
+}
+
+private sealed interface NavigationItemLeadingVisual {
+    data class Icon(
+        val deselected: DrawableResource,
+        val selected: DrawableResource,
+    ) : NavigationItemLeadingVisual
+
+    data class Symbol(val value: String) : NavigationItemLeadingVisual
 }
 
 @Composable
 private fun NavigationItem(
     label: String,
-    symbol: String,
+    leadingVisual: NavigationItemLeadingVisual,
     selected: Boolean,
     onClick: (() -> Unit)? = null,
 ) {
@@ -108,17 +140,30 @@ private fun NavigationItem(
     }
     val itemModifier = Modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(8.dp))
+        .clip(RoundedCornerShape(CookDimensions.sideNavigationItemCornerRadius))
         .background(background)
         .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-        .padding(horizontal = 16.dp, vertical = 8.dp)
+        .padding(
+            horizontal = CookDimensions.sideNavigationItemHorizontalPadding,
+            vertical = CookDimensions.sideNavigationItemVerticalPadding,
+        )
 
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = itemModifier,
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(CookDimensions.sideNavigationItemContentSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(symbol, color = contentColor)
+        when (leadingVisual) {
+            is NavigationItemLeadingVisual.Icon -> Icon(
+                painter = painterResource(
+                    if (selected) leadingVisual.selected else leadingVisual.deselected,
+                ),
+                contentDescription = null,
+                modifier = Modifier.size(CookDimensions.sideNavigationItemIconSize),
+                tint = contentColor,
+            )
+            is NavigationItemLeadingVisual.Symbol -> Text(leadingVisual.value, color = contentColor)
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
