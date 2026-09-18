@@ -4,28 +4,28 @@ product:
 
 dependencies:
   - ../contracts
-  - androidx.room:room-runtime:2.8.4
-  - androidx.sqlite:sqlite-bundled:2.7.0
+  - androidx.room:room-runtime:2.8.5
+  - androidx.sqlite:sqlite-bundled:2.7.1
   - androidx.datastore:datastore:1.2.1
   - androidx.datastore:datastore-core-okio:1.2.1
   - androidx.datastore:datastore-preferences:1.2.1
   - io.insert-koin:koin-core:4.2.2
 
 dependencies@jvm:
-  - org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2
-  - ai.koog:koog-agents:1.1.1
-  - ai.koog:koog-agents-additions:1.1.1-beta
-  - ai.koog:http-client-ktor:1.1.1
-  - ai.koog:prompt-executor-openrouter-client:1.1.1
+  - org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0
+  - ai.koog:koog-agents:1.2.0
+  - ai.koog:koog-agents-additions:1.2.0-beta
+  - ai.koog:http-client-ktor:1.2.0
+  - ai.koog:prompt-executor-openrouter-client:1.2.0
   - io.ktor:ktor-client-core:3.3.3
   - io.ktor:ktor-client-cio:3.3.3
-  - org.slf4j:slf4j-simple:2.0.17
+  - org.slf4j:slf4j-simple:2.0.19
 
 settings:
   kotlin:
     serialization: json
     ksp:
       processors:
-        - androidx.room:room-compiler:2.8.4
+        - androidx.room:room-compiler:2.8.5
       processorOptions:
         room.schemaLocation: schemas

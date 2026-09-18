@@ -1,6 +1,10 @@
 # Project Rules
 
 - Before changing behavior, read the relevant local code.
+- To look up Koog APIs or behavior, read the sibling source checkout at `../koog` (relative to this repo root). Do not decompile or unpack Koog jars instead.
+  - Branch must match the pinned version in `data/module.yaml` (`ai.koog:koog-agents:<version>` → `release/<version>`).
+  - Verify before reading: `git -C ../koog branch --show-current`. On mismatch, `git -C ../koog switch release/<version>`; when that branch is created locally for the first time, pull the sources first (`git -C ../koog pull`).
+  - Read only — never modify files inside `../koog`.
 - Keep changes scoped; avoid unrelated refactors and formatting-only noise.
 - Unless the user explicitly requests it, do not revert or overwrite existing user changes.
 - Do not create Git commits unless the user explicitly asks for a commit.
