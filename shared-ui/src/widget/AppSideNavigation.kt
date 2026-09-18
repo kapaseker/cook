@@ -4,9 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,6 +17,8 @@ import cook.generated.resources.ic_chat
 import cook.generated.resources.ic_chat_fill
 import cook.generated.resources.ic_settings
 import cook.generated.resources.ic_settings_fill
+import cook.generated.resources.ic_question
+import cook.generated.resources.ic_question_fill
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import theme.CookDimensions
@@ -28,6 +27,7 @@ import theme.CookDimensions
 internal enum class AppNavigationDestination {
     Chat,
     Settings,
+    Help,
 }
 
 /** Renders the shared primary navigation shown beside chat and settings. */
@@ -36,6 +36,7 @@ internal fun AppSideNavigation(
     selectedDestination: AppNavigationDestination,
     onOpenChat: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHelp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -83,31 +84,14 @@ internal fun AppSideNavigation(
                 onClick = onOpenSettings,
             )
         }
-        Button(
-            onClick = {},
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-            shape = RoundedCornerShape(CookDimensions.sideNavigationItemCornerRadius),
-        ) {
-            Text("Upgrade to Pro", style = MaterialTheme.typography.labelLarge)
-        }
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = CookDimensions.sideNavigationDividerVerticalPadding),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-        )
         NavigationItem(
             label = "Help",
-            leadingVisual = NavigationItemLeadingVisual.Symbol("?"),
-            selected = false,
-        )
-        Spacer(Modifier.padding(vertical = CookDimensions.sideNavigationFooterSpacing))
-        NavigationItem(
-            label = "Log out",
-            leadingVisual = NavigationItemLeadingVisual.Symbol("↪"),
-            selected = false,
+            leadingVisual = NavigationItemLeadingVisual.Icon(
+                deselected = Res.drawable.ic_question,
+                selected = Res.drawable.ic_question_fill,
+            ),
+            selected = selectedDestination == AppNavigationDestination.Help,
+            onClick = onOpenHelp,
         )
     }
 }
@@ -117,8 +101,6 @@ private sealed interface NavigationItemLeadingVisual {
         val deselected: DrawableResource,
         val selected: DrawableResource,
     ) : NavigationItemLeadingVisual
-
-    data class Symbol(val value: String) : NavigationItemLeadingVisual
 }
 
 @Composable
@@ -162,7 +144,6 @@ private fun NavigationItem(
                 modifier = Modifier.size(CookDimensions.sideNavigationItemIconSize),
                 tint = contentColor,
             )
-            is NavigationItemLeadingVisual.Symbol -> Text(leadingVisual.value, color = contentColor)
         }
         Text(
             text = label,

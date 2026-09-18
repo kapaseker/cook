@@ -84,10 +84,9 @@ internal fun SettingsContentScreen(
                 onScaleChangeFinished = onTextScaleChangeFinished,
                 onReset = onResetTextScale,
             )
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(CookDimensions.pageGutter),
-                verticalAlignment = Alignment.Top,
+                verticalArrangement = Arrangement.spacedBy(CookDimensions.settingsSectionSpacing),
             ) {
                 ApplicationSettingsCard(
                     modelState = modelState,
@@ -98,9 +97,9 @@ internal fun SettingsContentScreen(
                     onUiScaleChanged = onUiScaleChanged,
                     onUiScaleChangeFinished = onUiScaleChangeFinished,
                     onResetUiScale = onResetUiScale,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                AboutCard(modifier = Modifier.weight(1f))
+                AboutCard(modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -196,22 +195,18 @@ private fun ApplicationSettingsCard(
 
 @Composable
 private fun AboutCard(modifier: Modifier = Modifier) {
-    SettingsCard(
-        modifier = modifier.heightIn(min = CookDimensions.aboutCardMinimumHeight),
-        containerColor = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-    ) {
-        Text("ⓘ", style = MaterialTheme.typography.titleLarge)
+    SettingsCard(modifier = modifier) {
+        Text("ⓘ", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
         Text("About Cook", style = MaterialTheme.typography.titleLarge)
         Text(
             "A calm place for thoughtful cooking conversations.",
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
             "Version 1.0 (Desktop)",
             style = MaterialTheme.typography.labelLarge,
         )
-        Box(modifier = Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(CookDimensions.aboutCardActionSpacing)) {
             Button(onClick = {}, modifier = Modifier.weight(1f)) {
                 Text("Release notes")

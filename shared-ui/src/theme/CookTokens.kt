@@ -64,8 +64,6 @@ object CookDimensions {
     val sideNavigationItemVerticalPadding = 8.dp
     val sideNavigationItemContentSpacing = 20.dp
     val sideNavigationItemIconSize = 24.dp
-    val sideNavigationDividerVerticalPadding = 24.dp
-    val sideNavigationFooterSpacing = 4.dp
 
     val mediumIconButtonSize = 52.dp
     val mediumIconButtonContentPadding = 10.dp
@@ -88,7 +86,6 @@ object CookDimensions {
     val settingsPreviewCornerRadius = 8.dp
     val textAppearancePreviewHorizontalPadding = 24.dp
     val textAppearancePreviewVerticalPadding = 48.dp
-    val aboutCardMinimumHeight = 408.dp
     val aboutCardActionSpacing = 16.dp
     val settingsCardTonalElevation = 1.dp
     val settingsCardShadowElevation = 2.dp

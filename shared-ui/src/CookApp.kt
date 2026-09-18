@@ -21,8 +21,10 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import navigation.ChatNav
+import navigation.HelpNav
 import navigation.SettingsNav
 import page.chat.ChatPage
+import page.help.HelpPage
 import page.settings.SettingsPage
 import page.settings.biz.SettingsViewModel
 import page.settings.biz.selectedTextScale
@@ -37,6 +39,7 @@ private val navigationStateConfiguration = SavedStateConfiguration {
         polymorphic(NavKey::class) {
             subclass(ChatNav::class, ChatNav.serializer())
             subclass(SettingsNav::class, SettingsNav.serializer())
+            subclass(HelpNav::class, HelpNav.serializer())
         }
     }
 }
@@ -74,18 +77,12 @@ fun CookApp() {
                 selectedDestination = when (backStack.last()) {
                     ChatNav -> AppNavigationDestination.Chat
                     SettingsNav -> AppNavigationDestination.Settings
+                    HelpNav -> AppNavigationDestination.Help
                     else -> error("Unsupported Cook navigation entry")
                 },
-                onOpenChat = {
-                    if (backStack.lastOrNull() == SettingsNav) {
-                        backStack.removeLastOrNull()
-                    }
-                },
-                onOpenSettings = {
-                    if (backStack.lastOrNull() != SettingsNav) {
-                        backStack.add(SettingsNav)
-                    }
-                },
+                onOpenChat = { backStack.navigateTo(ChatNav) },
+                onOpenSettings = { backStack.navigateTo(SettingsNav) },
+                onOpenHelp = { backStack.navigateTo(HelpNav) },
             ) {
                 NavDisplay(
                     backStack = backStack,
@@ -114,11 +111,21 @@ fun CookApp() {
                                 onModelSelected = settingsViewModel::selectModel,
                             )
                         }
+                        entry<HelpNav> {
+                            HelpPage()
+                        }
                     }
                 )
             }
         }
     }
+}
+
+/** Replaces the current top navigation entry so the rail always reflects the active page. */
+private fun MutableList<NavKey>.navigateTo(key: NavKey) {
+    if (lastOrNull() == key) return
+    if (isNotEmpty()) removeAt(lastIndex)
+    add(key)
 }
 
 /** Renders the initial loading state. */

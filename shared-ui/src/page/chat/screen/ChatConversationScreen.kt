@@ -177,7 +177,7 @@ private fun ConversationHeader(
         }
         IconButton(onClick = onDeleteChat, enabled = canDeleteChat) {
             Icon(
-                painter = painterResource(Res.drawable.ic_clear),
+                painter = painterResource(Res.drawable.ic_delete),
                 contentDescription = stringResource(Res.string.delete_chat),
             )
         }

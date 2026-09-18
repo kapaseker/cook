@@ -13,6 +13,7 @@ internal fun CookScaffold(
     selectedDestination: AppNavigationDestination,
     onOpenChat: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenHelp: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     Row(
@@ -22,6 +23,7 @@ internal fun CookScaffold(
             selectedDestination = selectedDestination,
             onOpenChat = onOpenChat,
             onOpenSettings = onOpenSettings,
+            onOpenHelp = onOpenHelp,
         )
         VerticalDivider(
             modifier = Modifier.fillMaxHeight(),

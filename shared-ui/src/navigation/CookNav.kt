@@ -11,3 +11,6 @@ internal data object ChatNav : CookNav
 
 @Serializable
 internal data object SettingsNav : CookNav
+
+@Serializable
+internal data object HelpNav : CookNav
