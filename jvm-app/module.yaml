@@ -9,4 +9,6 @@ dependencies:
   - $compose.components.resources
 
 settings:
-  compose: enabled
+  compose:
+    enabled: true
+    version: 1.12.0
